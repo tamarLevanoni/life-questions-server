@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: life-questions-server
+    runtime: node
+    buildCommand: bun install && bunx prisma generate && bun run build
+    startCommand: node dist/server.js
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3001
+      - key: API_SECRET
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
+        sync: false
+      - key: CORS_ORIGIN_PROD
+        sync: false
+      - key: SENTRY_DSN
+        sync: false

@@ -29,12 +29,12 @@ describe('PATCH /api/users/profile/:id', () => {
     const user = await createUser();
 
     const res = await authed('patch', `/api/users/profile/${user.id}`)
-      .send({ institutionName: 'New University', occupations: ['educator'] });
+      .send({ institutionName: 'New University', occupations: ['teacher'] });
 
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
     expect(res.body.data.institutionName).toBe('New University');
-    expect(res.body.data.occupations).toContain('educator');
+    expect(res.body.data.occupations).toContain('teacher');
 
     const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
     expect(dbUser!.institutionName).toBe('New University');

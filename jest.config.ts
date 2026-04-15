@@ -11,10 +11,7 @@ const config: Config = {
   setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
   globals: {
     'ts-jest': {
-      tsconfig: {
-        module: 'CommonJS',
-        target: 'ES2022',
-      },
+      tsconfig: './tsconfig.test.json',
     },
   },
   testTimeout: 30000,

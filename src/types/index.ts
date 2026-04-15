@@ -1,11 +1,3 @@
-export enum OccupationEnum {
-  jurist = 'jurist',
-  educator = 'educator',
-  student = 'student',
-  parent = 'parent',
-  learner = 'learner',
-}
-
 export interface StandardResponse<T = unknown> {
   success: boolean;
   data?: T;
@@ -28,5 +20,14 @@ export class ValidationError extends Error {
   constructor(message: string) {
     super(message);
     this.name = 'ValidationError';
+  }
+}
+
+export class ConflictError extends Error {
+  statusCode = 409;
+
+  constructor(message: string) {
+    super(message);
+    this.name = 'ConflictError';
   }
 }

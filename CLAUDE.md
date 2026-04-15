@@ -16,7 +16,7 @@
 - **Deployment:** Configured for deployment on **Render**.
 
 ## Logic & Data Structure (MVP Phase)
-- **User Model:** Must include split fields for **`firstName`** and **`lastName`**, a unique `email`, an optional **`institutionName`**, optional `phone`, an array for `occupations` (jurist, educator, student, parent, learner), and `marketingConsent`.
+- **User Model:** Must include split fields for **`firstName`** and **`lastName`**, a unique `email`, an optional **`institutionName`**, optional `phone`, an array for `occupations` (dayyan, rabbi, teacher, student, parent, learner), and `marketingConsent`.
 - **Content Hierarchy:** Scenarios must support the structure: Scenario Content → Question → Short Answer → Expansion.
 - **Permission Logic:** The `expansion` field should only be returned if the requesting user has the appropriate access flags.
 - **Categorization:** Data must be indexed by a 3-level Source system (e.g., Book → Section → Subsection) and thematic Concept tags.
@@ -31,3 +31,9 @@
 - **Error Handling:** Maintain a standardized JSON error response structure.
 - **Monitoring:** Integrate **Sentry** for real-time error tracking and performance monitoring.
 - **Testing:** Every new endpoint must be accompanied by integration tests verifying both success and unauthorized (missing API secret) states.
+
+## Route Sync Rule
+Whenever a route is **created or updated**, you MUST also update both:
+1. **Tests** — add or adjust integration tests in `tests/<module>/` to cover the new/changed behaviour.
+2. **Swagger** — register or update the corresponding `registry.registerPath(...)` entry in `src/lib/swagger.ts`, and add/update `.openapi()` metadata on any new Zod schemas in the module's `*.validators.ts` file.
+This keeps the API contract, validation logic, and documentation in permanent sync.

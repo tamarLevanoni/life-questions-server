@@ -8,8 +8,9 @@ datasource db {
 }
 
 enum Occupation {
-  jurist
-  educator
+  dayyan
+  rabbi
+  teacher
   student
   parent
   learner
@@ -17,6 +18,7 @@ enum Occupation {
 
 model User {
   id               String       @id @default(uuid())
+  googleId         String?      @unique
   email            String       @unique
   firstName        String
   lastName         String

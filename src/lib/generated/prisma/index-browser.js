@@ -122,6 +122,7 @@ exports.Prisma.TransactionIsolationLevel = makeStrictEnum({
 
 exports.Prisma.UserScalarFieldEnum = {
   id: 'id',
+  googleId: 'googleId',
   email: 'email',
   firstName: 'firstName',
   lastName: 'lastName',
@@ -148,8 +149,9 @@ exports.Prisma.NullsOrder = {
   last: 'last'
 };
 exports.Occupation = exports.$Enums.Occupation = {
-  jurist: 'jurist',
-  educator: 'educator',
+  dayyan: 'dayyan',
+  rabbi: 'rabbi',
+  teacher: 'teacher',
   student: 'student',
   parent: 'parent',
   learner: 'learner'

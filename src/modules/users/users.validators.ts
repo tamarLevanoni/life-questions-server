@@ -4,12 +4,12 @@ import { Occupation } from '../../lib/generated/prisma';
 
 extendZodWithOpenApi(z);
 
-const OccupationEnum = z.nativeEnum(Occupation);
+const OccupationEnum = z.enum(Object.values(Occupation) as [Occupation, ...Occupation[]]);
 
 export const CreateUserSchema = z
   .object({
     googleId: z.string().min(1, { message: 'googleId is required' }).openapi({ example: '112233445566778899' }),
-    email: z.string().email({ message: 'email must be a valid email address' }).openapi({ example: 'user@example.com' }),
+    email: z.string().check(z.email({ error: 'email must be a valid email address' })).openapi({ example: 'user@example.com' }),
     firstName: z.string().min(1, { message: 'firstName is required' }).openapi({ example: 'Yosef' }),
     lastName: z.string().min(1, { message: 'lastName is required' }).openapi({ example: 'Cohen' }),
     institutionName: z.string().optional().openapi({ example: 'Yeshivat Har Etzion' }),
@@ -34,7 +34,7 @@ export const UpdateProfileSchema = z
 
 export const UuidParamSchema = z
   .string()
-  .uuid({ message: 'id must be a valid UUID' })
+  .check(z.uuid({ error: 'id must be a valid UUID' }))
   .openapi({ example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' });
 
 export const GoogleIdParamSchema = z

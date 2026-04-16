@@ -29,6 +29,7 @@ app.use(helmet());
 // CORS — restrict to configured frontend origins
 const allowedOrigins = [
   process.env.CORS_ORIGIN_DEV ?? 'http://localhost:3000',
+  'https://life-questions.vercel.app/',
   process.env.CORS_ORIGIN_PROD,
 ].filter(Boolean) as string[];
 

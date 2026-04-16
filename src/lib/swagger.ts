@@ -1,6 +1,6 @@
 import { OpenAPIRegistry, OpenApiGeneratorV3 } from '@asteasolutions/zod-to-openapi';
 import { z } from 'zod';
-import { Occupation } from './generated/prisma';
+import { Occupation } from '@prisma/client';
 import {
   CreateUserSchema,
   UpdateProfileSchema,

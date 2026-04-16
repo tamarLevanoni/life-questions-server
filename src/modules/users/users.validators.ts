@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { extendZodWithOpenApi } from '@asteasolutions/zod-to-openapi';
-import { Occupation } from '../../lib/generated/prisma';
+import { Occupation } from '@prisma/client';
 
 extendZodWithOpenApi(z);
 

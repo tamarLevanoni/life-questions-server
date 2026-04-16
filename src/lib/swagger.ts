@@ -15,17 +15,17 @@ const registry = new OpenAPIRegistry();
 
 const UserResponseSchema = z
   .object({
-    id: z.string().check(z.uuid()).openapi({ example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' }),
+    id: z.uuid().openapi({ example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' }),
     googleId: z.string().nullable().openapi({ example: '112233445566778899' }),
-    email: z.string().check(z.email()).openapi({ example: 'user@example.com' }),
+    email: z.email().openapi({ example: 'user@example.com' }),
     firstName: z.string().openapi({ example: 'Yosef' }),
     lastName: z.string().openapi({ example: 'Cohen' }),
     institutionName: z.string().nullable().openapi({ example: 'Yeshivat Har Etzion' }),
     phone: z.string().openapi({ example: '+972501234567' }),
     occupations: z.array(z.enum(Object.values(Occupation) as [Occupation, ...Occupation[]])).openapi({ example: ['teacher'] }),
     marketingConsent: z.boolean().openapi({ example: true }),
-    createdAt: z.string().check(z.iso.datetime()).openapi({ example: '2024-01-15T10:30:00.000Z' }),
-    updatedAt: z.string().check(z.iso.datetime()).openapi({ example: '2024-06-01T08:00:00.000Z' }),
+    createdAt: z.iso.datetime().openapi({ example: '2024-01-15T10:30:00.000Z' }),
+    updatedAt: z.iso.datetime().openapi({ example: '2024-06-01T08:00:00.000Z' }),
   })
   .openapi('UserResponse');
 

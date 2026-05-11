@@ -30,3 +30,123 @@ model User {
 
   @@map("users")
 }
+
+model Topic {
+  id         String  @id @default(uuid())
+  bookNumber Int
+  name       String
+  orderIndex Int
+
+  stories Story[]
+
+  @@unique([bookNumber, name])
+  @@map("topics")
+}
+
+model ShuSection {
+  id   String @id @default(uuid())
+  name String @unique
+
+  simanim ShuSiman[]
+
+  @@map("shu_sections")
+}
+
+model ShuSiman {
+  id        String  @id @default(uuid())
+  sectionId String
+  siman     Int
+  title     String?
+
+  section ShuSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  stories StoryToShu[]
+
+  @@unique([sectionId, siman])
+  @@map("shu_simanim")
+}
+
+model Masechet {
+  id         String @id @default(uuid())
+  name       String @unique
+  orderIndex Int
+
+  pages ShasPage[]
+
+  @@map("masechtot")
+}
+
+model ShasPage {
+  id         String @id @default(uuid())
+  masechetId String
+  daf        Int
+  amud       String
+
+  masechet Masechet @relation(fields: [masechetId], references: [id], onDelete: Cascade)
+  stories  StoryToShas[]
+
+  @@unique([masechetId, daf, amud])
+  @@map("shas_pages")
+}
+
+model Story {
+  id                  String   @id @default(uuid())
+  bookNumber          Int
+  storyOrder          Int
+  topicId             String
+
+  title               String
+  storyBody           String
+  legalQuestion       String
+  legalQuestionSource String
+  shortAnswer         String
+  expansion           String?
+  sourceReferencesText String?
+  summaryAi           String?
+  conceptsAi          String[]
+  keywordsAi          String[]
+  conceptsFromIndex   String[]
+  keywordsFromIndex   String[]
+
+    // --- חיפוש סמנטי (pgvector) ---
+  searchText          String?                                  // הטקסט שהוטמע (audit trail)
+  embedding           Unsupported("vector(1536)")?            // הוקטור עצמו
+  embeddingModel      String?                                  // למשל "text-embedding-3-small"
+  // --------------------------------
+  
+  videoUrl            String?
+  imageUrl            String?
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  topic     Topic @relation(fields: [topicId], references: [id])
+  shuRefs   StoryToShu[]
+  shasRefs  StoryToShas[]
+
+  @@unique([bookNumber, storyOrder])
+  @@map("stories")
+}
+
+model StoryToShu {
+  storyId    String
+  shuSimanId String
+  seif       Int
+
+  story    Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  shuSiman ShuSiman @relation(fields: [shuSimanId], references: [id], onDelete: Cascade)
+
+  @@id([storyId, shuSimanId, seif])
+  @@map("story_to_shu")
+}
+
+model StoryToShas {
+  storyId    String
+  shasPageId String
+  sourceText String?
+
+  story    Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  shasPage ShasPage @relation(fields: [shasPageId], references: [id], onDelete: Cascade)
+
+  @@id([storyId, shasPageId])
+  @@map("story_to_shas")
+}

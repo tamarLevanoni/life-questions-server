@@ -1,23 +1,12 @@
-interface CacheEntry<T> {
-  value: T;
-  expiresAt: number;
-}
-
-class TtlCache {
-  private store = new Map<string, CacheEntry<unknown>>();
+class SimpleCache {
+  private store = new Map<string, unknown>();
 
   get<T>(key: string): T | null {
-    const entry = this.store.get(key) as CacheEntry<T> | undefined;
-    if (!entry) return null;
-    if (Date.now() > entry.expiresAt) {
-      this.store.delete(key);
-      return null;
-    }
-    return entry.value;
+    return this.store.has(key) ? (this.store.get(key) as T) : null;
   }
 
-  set<T>(key: string, value: T, ttlMs: number): void {
-    this.store.set(key, { value, expiresAt: Date.now() + ttlMs });
+  set<T>(key: string, value: T): void {
+    this.store.set(key, value);
   }
 
   delete(key: string): void {
@@ -29,9 +18,4 @@ class TtlCache {
   }
 }
 
-export const cache = new TtlCache();
-
-export const TTL = {
-  REFERENCE: 24 * 60 * 60 * 1000,  // 24 hours — data changes only on manual updates
-  CONCEPTS: 24 * 60 * 60 * 1000,   // 24 hours — same reason
-} as const;
+export const cache = new SimpleCache();

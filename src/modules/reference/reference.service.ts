@@ -1,13 +1,13 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
-import { cache, TTL } from '../../lib/cache';
+import { cache } from '../../lib/cache';
 
 export async function getMasechtot() {
   const key = 'ref:masechtot';
   const cached = cache.get<Awaited<ReturnType<typeof fetchMasechtot>>>(key);
   if (cached) return cached;
   const data = await fetchMasechtot();
-  cache.set(key, data, TTL.REFERENCE);
+  cache.set(key, data);
   return data;
 }
 
@@ -20,7 +20,7 @@ export async function getMasechetPages(masechetId: string) {
   const cached = cache.get<Awaited<ReturnType<typeof fetchMasechetPages>>>(key);
   if (cached) return cached;
   const data = await fetchMasechetPages(masechetId);
-  cache.set(key, data, TTL.REFERENCE);
+  cache.set(key, data);
   return data;
 }
 
@@ -37,7 +37,7 @@ export async function getShuSections() {
   const cached = cache.get<Awaited<ReturnType<typeof fetchShuSections>>>(key);
   if (cached) return cached;
   const data = await fetchShuSections();
-  cache.set(key, data, TTL.REFERENCE);
+  cache.set(key, data);
   return data;
 }
 
@@ -58,7 +58,7 @@ export async function getShuSimanim(sectionId: string) {
   const cached = cache.get<Awaited<ReturnType<typeof fetchShuSimanim>>>(key);
   if (cached) return cached;
   const data = await fetchShuSimanim(sectionId);
-  cache.set(key, data, TTL.REFERENCE);
+  cache.set(key, data);
   return data;
 }
 
@@ -75,7 +75,7 @@ export async function getTopics() {
   const cached = cache.get<Awaited<ReturnType<typeof fetchTopics>>>(key);
   if (cached) return cached;
   const data = await fetchTopics();
-  cache.set(key, data, TTL.REFERENCE);
+  cache.set(key, data);
   return data;
 }
 
@@ -90,7 +90,7 @@ export async function getConcepts() {
   const cached = cache.get<string[]>(key);
   if (cached) return cached;
   const data = await fetchConcepts();
-  cache.set(key, data, TTL.CONCEPTS);
+  cache.set(key, data);
   return data;
 }
 

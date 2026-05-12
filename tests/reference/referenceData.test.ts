@@ -16,25 +16,31 @@ const SECRET = process.env.API_SECRET ?? 'test-secret';
 const authed = (url: string) =>
   request(app).get(url).set('x-api-secret', SECRET);
 
+// cache.clear() runs first so it always executes even if cleanDb throws
 beforeEach(async () => {
-  await cleanDb();
   cache.clear();
+  await cleanDb();
 });
 
 describe('GET /api/reference/masechtot', () => {
   it('returns all tractates sorted by orderIndex', async () => {
-    await seedMasechet({ name: 'בבא קמא', orderIndex: 2 });
-    await seedMasechet({ name: 'ברכות', orderIndex: 1 });
-    await seedMasechet({ name: 'סנהדרין', orderIndex: 3 });
+    const m1 = await seedMasechet({ name: 'בבא קמא', orderIndex: 2 });
+    const m2 = await seedMasechet({ name: 'ברכות', orderIndex: 1 });
+    const m3 = await seedMasechet({ name: 'סנהדרין', orderIndex: 3 });
 
     const res = await authed('/api/reference/masechtot');
 
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
-    expect(res.body.data).toHaveLength(3);
-    expect(res.body.data[0].name).toBe('ברכות');
-    expect(res.body.data[1].name).toBe('בבא קמא');
-    expect(res.body.data[2].name).toBe('סנהדרין');
+
+    const ids = new Set([m1.id, m2.id, m3.id]);
+    const seeded: { id: string; name: string; orderIndex: number }[] =
+      res.body.data.filter((m: { id: string }) => ids.has(m.id));
+
+    expect(seeded).toHaveLength(3);
+    expect(seeded[0].name).toBe('ברכות');
+    expect(seeded[1].name).toBe('בבא קמא');
+    expect(seeded[2].name).toBe('סנהדרין');
   });
 
   it('returns empty array when no tractates exist', async () => {
@@ -95,11 +101,15 @@ describe('GET /api/reference/shu-sections', () => {
     const res = await authed('/api/reference/shu-sections');
 
     expect(res.status).toBe(200);
-    expect(res.body.data).toHaveLength(1);
-    expect(res.body.data[0].name).toBe('אורח חיים');
-    expect(res.body.data[0].simanim).toHaveLength(2);
-    expect(res.body.data[0].simanim[0].siman).toBe(1);
-    expect(res.body.data[0].simanim[1].siman).toBe(328);
+
+    const seeded: { id: string; name: string; simanim: unknown[] }[] =
+      res.body.data.filter((s: { id: string }) => s.id === section.id);
+
+    expect(seeded).toHaveLength(1);
+    expect(seeded[0].name).toBe('אורח חיים');
+    expect(seeded[0].simanim).toHaveLength(2);
+    expect((seeded[0].simanim[0] as { siman: number }).siman).toBe(1);
+    expect((seeded[0].simanim[1] as { siman: number }).siman).toBe(328);
   });
 
   it('returns 401 without api-secret header', async () => {
@@ -138,17 +148,22 @@ describe('GET /api/reference/shu-sections/:sectionId/simanim', () => {
 
 describe('GET /api/reference/topics', () => {
   it('returns topics sorted by bookNumber then orderIndex', async () => {
-    await seedTopic({ bookNumber: 2, name: 'שבת', orderIndex: 1 });
-    await seedTopic({ bookNumber: 1, name: 'נזיקין', orderIndex: 2 });
-    await seedTopic({ bookNumber: 1, name: 'ברכות', orderIndex: 1 });
+    const t1 = await seedTopic({ bookNumber: 2, name: 'שבת', orderIndex: 1 });
+    const t2 = await seedTopic({ bookNumber: 1, name: 'נזיקין', orderIndex: 2 });
+    const t3 = await seedTopic({ bookNumber: 1, name: 'ברכות', orderIndex: 1 });
 
     const res = await authed('/api/reference/topics');
 
     expect(res.status).toBe(200);
-    expect(res.body.data).toHaveLength(3);
-    expect(res.body.data[0].name).toBe('ברכות');
-    expect(res.body.data[1].name).toBe('נזיקין');
-    expect(res.body.data[2].name).toBe('שבת');
+
+    const ids = new Set([t1.id, t2.id, t3.id]);
+    const seeded: { id: string; name: string }[] =
+      res.body.data.filter((t: { id: string }) => ids.has(t.id));
+
+    expect(seeded).toHaveLength(3);
+    expect(seeded[0].name).toBe('ברכות');   // bookNumber 1, orderIndex 1
+    expect(seeded[1].name).toBe('נזיקין');  // bookNumber 1, orderIndex 2
+    expect(seeded[2].name).toBe('שבת');     // bookNumber 2, orderIndex 1
   });
 
   it('returns 401 without api-secret header', async () => {
@@ -170,7 +185,7 @@ describe('GET /api/reference/concepts', () => {
     expect(concepts).toContain('ריבית');
     expect(concepts).toContain('גנבה');
     expect(concepts).toContain('כיבוד אב');
-    // 'גנבה' appears twice in DB but should appear once
+    // 'גנבה' appears in two stories but must appear once
     expect(concepts.filter((c) => c === 'גנבה')).toHaveLength(1);
   });
 

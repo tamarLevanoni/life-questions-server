@@ -9,5 +9,6 @@ router.get('/shu-sections', ReferenceController.getShuSections);
 router.get('/shu-sections/:sectionId/simanim', ReferenceController.getShuSimanim);
 router.get('/topics', ReferenceController.getTopics);
 router.get('/concepts', ReferenceController.getConcepts);
+router.post('/cache/invalidate', ReferenceController.invalidateCache);
 
 export { router as referenceRouter };

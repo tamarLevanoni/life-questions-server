@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { sendSuccess, sendError } from '../../utils/response';
+import { cache } from '../../lib/cache';
 import * as ReferenceService from './reference.service';
 
 const UuidParam = z.uuid({ error: 'id must be a valid UUID' });
@@ -67,4 +68,9 @@ export async function getConcepts(_req: Request, res: Response, next: NextFuncti
   } catch (err) {
     next(err);
   }
+}
+
+export function invalidateCache(_req: Request, res: Response): void {
+  cache.clear();
+  sendSuccess(res, { message: 'Reference cache cleared' });
 }

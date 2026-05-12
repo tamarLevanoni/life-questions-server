@@ -1,11 +1,10 @@
 import { v4 as uuidv4 } from 'uuid';
 import { prisma } from '../../src/lib/prisma';
 
+// Single atomic TRUNCATE avoids FK violations when test files run in parallel.
+// CASCADE handles: story_to_shu, story_to_shas, shu_simanim, shas_pages.
 export async function cleanDb() {
-  await prisma.story.deleteMany();
-  await prisma.topic.deleteMany();
-  await prisma.masechet.deleteMany();
-  await prisma.shuSection.deleteMany();
+  await prisma.$executeRaw`TRUNCATE TABLE stories, topics, masechtot, shu_sections CASCADE`;
 }
 
 export async function seedTopic(overrides: Partial<{ bookNumber: number; name: string; orderIndex: number }> = {}) {

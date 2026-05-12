@@ -32,6 +32,6 @@ class TtlCache {
 export const cache = new TtlCache();
 
 export const TTL = {
-  REFERENCE: 60 * 60 * 1000,   // 1 hour
-  CONCEPTS: 30 * 60 * 1000,    // 30 minutes
+  REFERENCE: 24 * 60 * 60 * 1000,  // 24 hours — data changes only on manual updates
+  CONCEPTS: 24 * 60 * 60 * 1000,   // 24 hours — same reason
 } as const;

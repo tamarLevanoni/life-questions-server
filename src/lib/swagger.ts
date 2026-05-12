@@ -403,12 +403,34 @@ registry.registerPath({
   path: '/api/reference/concepts',
   tags: ['Reference'],
   summary: 'List all distinct concept tags',
-  description: 'Aggregates distinct values from conceptsAi and conceptsFromIndex across all stories. Cached for 30 minutes.',
+  description: 'Aggregates distinct values from conceptsAi and conceptsFromIndex across all stories. Cached for 24 hours.',
   security: [{ ApiSecretAuth: [] }],
   responses: {
     200: {
       description: 'Sorted list of unique concept strings',
       content: { 'application/json': { schema: StandardSuccessSchema(z.array(z.string())) } },
+    },
+    401: { description: 'Unauthorized', content: { 'application/json': { schema: StandardErrorSchema } } },
+  },
+});
+
+// ── POST /api/reference/cache/invalidate ──────────────────────────────────────
+
+registry.registerPath({
+  method: 'post',
+  path: '/api/reference/cache/invalidate',
+  tags: ['Reference'],
+  summary: 'Invalidate reference cache',
+  description: 'Clears all in-memory reference cache entries. Call this manually after updating lists (masechtot, shu sections, topics, concepts). The next request to any reference endpoint will re-fetch from the database.',
+  security: [{ ApiSecretAuth: [] }],
+  responses: {
+    200: {
+      description: 'Cache cleared successfully',
+      content: {
+        'application/json': {
+          schema: StandardSuccessSchema(z.object({ message: z.string() })),
+        },
+      },
     },
     401: { description: 'Unauthorized', content: { 'application/json': { schema: StandardErrorSchema } } },
   },

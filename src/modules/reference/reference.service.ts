@@ -97,9 +97,8 @@ export async function getConcepts() {
 async function fetchConcepts(): Promise<string[]> {
   const rows = await prisma.$queryRaw<{ concept: string }[]>(
     Prisma.sql`
-      SELECT DISTINCT unnest(concepts_ai || concepts_from_index) AS concept
+      SELECT DISTINCT unnest("conceptsAi" || "conceptsFromIndex") AS concept
       FROM stories
-      WHERE array_length(concepts_ai, 1) > 0 OR array_length(concepts_from_index, 1) > 0
       ORDER BY concept
     `
   );

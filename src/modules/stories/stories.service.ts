@@ -129,3 +129,27 @@ export async function getStoryById(id: string) {
 
   return story;
 }
+
+export async function getStoryNeighbors(id: string) {
+  const story = await prisma.story.findUnique({
+    where: { id },
+    select: { bookNumber: true, storyOrder: true },
+  });
+
+  if (!story) throw new NotFoundError('Story');
+
+  const [prev, next] = await Promise.all([
+    prisma.story.findFirst({
+      where: { bookNumber: story.bookNumber, storyOrder: { lt: story.storyOrder } },
+      orderBy: { storyOrder: 'desc' },
+      select: { id: true, title: true },
+    }),
+    prisma.story.findFirst({
+      where: { bookNumber: story.bookNumber, storyOrder: { gt: story.storyOrder } },
+      orderBy: { storyOrder: 'asc' },
+      select: { id: true, title: true },
+    }),
+  ]);
+
+  return { prev: prev ?? null, next: next ?? null };
+}

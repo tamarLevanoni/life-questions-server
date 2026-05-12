@@ -30,3 +30,17 @@ export async function getStoryById(req: Request, res: Response, next: NextFuncti
     next(err);
   }
 }
+
+export async function getStoryNeighbors(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const parsed = StoryIdParamSchema.safeParse(req.params.id);
+    if (!parsed.success) {
+      sendError(res, 'Invalid story ID format: must be a UUID', 400);
+      return;
+    }
+    const neighbors = await StoriesService.getStoryNeighbors(parsed.data);
+    sendSuccess(res, neighbors);
+  } catch (err) {
+    next(err);
+  }
+}

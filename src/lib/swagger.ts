@@ -292,6 +292,50 @@ registry.registerPath({
   },
 });
 
+// ── GET /api/stories/:id/neighbors ───────────────────────────────────────────
+
+const StoryStubSchema = z.object({
+  id: z.string().openapi({ example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' }),
+  title: z.string().openapi({ example: 'מעשה בגנב שנכנס לחצר' }),
+}).openapi('StoryStub');
+
+const StoryNeighborsSchema = z.object({
+  prev: StoryStubSchema.nullable().openapi({ example: null }),
+  next: StoryStubSchema.nullable(),
+}).openapi('StoryNeighbors');
+
+registry.register('StoryNeighbors', StoryNeighborsSchema);
+
+registry.registerPath({
+  method: 'get',
+  path: '/api/stories/{id}/neighbors',
+  tags: ['Stories'],
+  summary: 'Get previous and next story in the same book',
+  description: 'Returns the adjacent stories (by storyOrder within the same bookNumber). Either field is null when the current story is first or last.',
+  security: [{ ApiSecretAuth: [] }],
+  request: {
+    params: z.object({ id: StoryIdParamSchema }),
+  },
+  responses: {
+    200: {
+      description: 'Neighbor stubs (id + title)',
+      content: { 'application/json': { schema: StandardSuccessSchema(StoryNeighborsSchema) } },
+    },
+    400: {
+      description: 'Invalid UUID format for story ID',
+      content: { 'application/json': { schema: StandardErrorSchema } },
+    },
+    401: {
+      description: 'Missing or invalid x-api-secret header',
+      content: { 'application/json': { schema: StandardErrorSchema } },
+    },
+    404: {
+      description: 'Story not found',
+      content: { 'application/json': { schema: StandardErrorSchema } },
+    },
+  },
+});
+
 // ── GET /api/reference/masechtot ─────────────────────────────────────────────
 
 registry.registerPath({

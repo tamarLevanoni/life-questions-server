@@ -73,11 +73,13 @@ export async function searchStories(params: SearchStoriesInput) {
       const vector = await embedText(q);
       const vectorLiteral = `[${vector.join(',')}]`;
 
+      // Cosine distance threshold: 0.3 ≈ 70% similarity — filters clearly irrelevant results
       const rows = await prisma.$queryRaw<{ id: string }[]>(
         Prisma.sql`
           SELECT id FROM stories
           WHERE embedding IS NOT NULL
-          ORDER BY embedding <-> ${vectorLiteral}::vector
+            AND (embedding <=> ${vectorLiteral}::vector) <= 0.4
+          ORDER BY embedding <=> ${vectorLiteral}::vector
           LIMIT 200
         `
       );

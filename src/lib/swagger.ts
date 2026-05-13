@@ -193,7 +193,7 @@ registry.registerPath({
   path: '/api/stories',
   tags: ['Stories'],
   summary: 'Search stories',
-  description: 'Hybrid search: vector similarity (pgvector) when embeddings exist, falls back to ILIKE. Supports filtering by Shas reference, Shulchan Aruch reference, or concept tag. Paginated.',
+  description: 'Hybrid search: vector similarity (pgvector, cosine) when embeddings exist, falls back to ILIKE. Use `minSimilarity` (0–1) to filter out low-confidence vector results. Supports filtering by Shas reference, Shulchan Aruch reference, or concept tag. Paginated.',
   security: [{ ApiSecretAuth: [] }],
   request: {
     query: SearchStoriesSchema,

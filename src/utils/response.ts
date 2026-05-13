@@ -3,6 +3,7 @@ import { StandardResponse } from '../types';
 
 export function sendSuccess<T>(res: Response, data: T, statusCode = 200): void {
   const body: StandardResponse<T> = { success: true, data };
+  console.log("🚀 ~ sendSuccess ~ body:", body)
   res.status(statusCode).json(body);
 }
 

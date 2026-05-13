@@ -60,6 +60,11 @@ describe('GET /api/stories/:id', () => {
     expect(data.shuRefs[0].shuSiman.siman).toBe(183);
     expect(data.shuRefs[0].shuSiman.section.name).toBe('חושן משפט');
     expect(data.shuRefs[0].seif).toBe(3);
+
+    // Neighbors are included
+    expect(data.neighbors).toBeDefined();
+    expect(data.neighbors.prev).toBeNull();
+    expect(data.neighbors.next).toBeNull();
   });
 
   it('returns expansion field when present', async () => {

@@ -8,7 +8,19 @@ import {
   GoogleIdParamSchema,
 } from '../modules/users/users.validators';
 // Note: extendZodWithOpenApi(z) is called in users.validators.ts — importing it first ensures it runs before this module
-import { SearchStoriesSchema, StoryIdParamSchema } from '../modules/stories/stories.validators';
+import {
+  SearchStoriesSchema,
+  StoryIdParamSchema,
+  StoryResponseSchema,
+  StoryStubSchema,
+  StoryNeighborsSchema,
+  PaginatedStoriesSchema,
+  MasechetSchema,
+  ShasPageSchema,
+  ShuSectionSchema,
+  ShuSimanSchema,
+  TopicSchema,
+} from '../modules/stories/stories.validators';
 
 const registry = new OpenAPIRegistry();
 
@@ -170,64 +182,6 @@ registry.registerPath({
   },
 });
 
-// ── Reusable story schemas ────────────────────────────────────────────────────
-
-const ShuSectionSchema = z.object({
-  id: z.string().openapi({ example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' }),
-  name: z.string().openapi({ example: 'אורח חיים' }),
-}).openapi('ShuSection');
-
-const ShuSimanSchema = z.object({
-  id: z.string().openapi({ example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' }),
-  siman: z.number().openapi({ example: 328 }),
-  title: z.string().nullable().openapi({ example: 'הלכות שבת' }),
-}).openapi('ShuSiman');
-
-const MasechetSchema = z.object({
-  id: z.string().openapi({ example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' }),
-  name: z.string().openapi({ example: 'בבא קמא' }),
-  orderIndex: z.number().openapi({ example: 1 }),
-}).openapi('Masechet');
-
-const ShasPageSchema = z.object({
-  id: z.string().openapi({ example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' }),
-  daf: z.number().openapi({ example: 5 }),
-  amud: z.string().openapi({ example: 'a' }),
-}).openapi('ShasPage');
-
-const TopicSchema = z.object({
-  id: z.string().openapi({ example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' }),
-  bookNumber: z.number().openapi({ example: 1 }),
-  name: z.string().openapi({ example: 'נזיקין' }),
-  orderIndex: z.number().openapi({ example: 1 }),
-}).openapi('Topic');
-
-const StoryResponseSchema = z.object({
-  id: z.string().openapi({ example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' }),
-  bookNumber: z.number().openapi({ example: 1 }),
-  storyOrder: z.number().openapi({ example: 5 }),
-  title: z.string().openapi({ example: 'מעשה בגנב שנכנס לחצר' }),
-  storyBody: z.string().openapi({ example: 'סיפור המעשה...' }),
-  legalQuestion: z.string().openapi({ example: 'האם חייב לשלם?' }),
-  legalQuestionSource: z.string().openapi({ example: 'בבא קמא ז.' }),
-  shortAnswer: z.string().openapi({ example: 'חייב בנזק שלם' }),
-  expansion: z.string().nullable().openapi({ example: 'הרחבה מפורטת...' }),
-  conceptsAi: z.array(z.string()).openapi({ example: ['גנבה', 'נזיקין'] }),
-  conceptsFromIndex: z.array(z.string()).openapi({ example: ['גנבה'] }),
-  videoUrl: z.string().nullable().openapi({ example: null }),
-  imageUrl: z.string().nullable().openapi({ example: null }),
-  topic: TopicSchema,
-  createdAt: z.iso.datetime().openapi({ example: '2024-01-15T10:30:00.000Z' }),
-  updatedAt: z.iso.datetime().openapi({ example: '2024-06-01T08:00:00.000Z' }),
-}).openapi('StoryResponse');
-
-const PaginatedStoriesSchema = z.object({
-  stories: z.array(StoryResponseSchema),
-  total: z.number().openapi({ example: 142 }),
-  page: z.number().openapi({ example: 1 }),
-  limit: z.number().openapi({ example: 20 }),
-}).openapi('PaginatedStories');
-
 registry.register('StoryResponse', StoryResponseSchema);
 registry.register('PaginatedStories', PaginatedStoriesSchema);
 registry.register('SearchStoriesQuery', SearchStoriesSchema);
@@ -262,6 +216,9 @@ registry.registerPath({
 
 // ── GET /api/stories/:id ──────────────────────────────────────────────────────
 
+registry.register('StoryStub', StoryStubSchema);
+registry.register('StoryNeighbors', StoryNeighborsSchema);
+
 registry.registerPath({
   method: 'get',
   path: '/api/stories/{id}',
@@ -276,50 +233,6 @@ registry.registerPath({
     200: {
       description: 'Story found',
       content: { 'application/json': { schema: StandardSuccessSchema(StoryResponseSchema) } },
-    },
-    400: {
-      description: 'Invalid UUID format for story ID',
-      content: { 'application/json': { schema: StandardErrorSchema } },
-    },
-    401: {
-      description: 'Missing or invalid x-api-secret header',
-      content: { 'application/json': { schema: StandardErrorSchema } },
-    },
-    404: {
-      description: 'Story not found',
-      content: { 'application/json': { schema: StandardErrorSchema } },
-    },
-  },
-});
-
-// ── GET /api/stories/:id/neighbors ───────────────────────────────────────────
-
-const StoryStubSchema = z.object({
-  id: z.string().openapi({ example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' }),
-  title: z.string().openapi({ example: 'מעשה בגנב שנכנס לחצר' }),
-}).openapi('StoryStub');
-
-const StoryNeighborsSchema = z.object({
-  prev: StoryStubSchema.nullable().openapi({ example: null }),
-  next: StoryStubSchema.nullable(),
-}).openapi('StoryNeighbors');
-
-registry.register('StoryNeighbors', StoryNeighborsSchema);
-
-registry.registerPath({
-  method: 'get',
-  path: '/api/stories/{id}/neighbors',
-  tags: ['Stories'],
-  summary: 'Get previous and next story in the same book',
-  description: 'Returns the adjacent stories (by storyOrder within the same bookNumber). Either field is null when the current story is first or last.',
-  security: [{ ApiSecretAuth: [] }],
-  request: {
-    params: z.object({ id: StoryIdParamSchema }),
-  },
-  responses: {
-    200: {
-      description: 'Neighbor stubs (id + title)',
-      content: { 'application/json': { schema: StandardSuccessSchema(StoryNeighborsSchema) } },
     },
     400: {
       description: 'Invalid UUID format for story ID',

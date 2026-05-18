@@ -23,11 +23,14 @@ const storyInclude = {
 } satisfies Prisma.StoryInclude;
 
 export async function searchStories(params: SearchStoriesInput) {
-  const { q, masechetId, daf, amud, shuSectionId, simanId, seif, concept, page, limit } = params;
+  const { q, topicId, bookId, masechetId, daf, amud, shuSectionId, simanId, seif, concept, page, limit } = params;
   const skip = (page - 1) * limit;
 
   // Build base Prisma where clause
   const where: Prisma.StoryWhereInput = {};
+
+  if (topicId) where.topicId = topicId;
+  if (bookId) where.bookId = bookId;
 
   // Shas filters
   if (masechetId || daf !== undefined || amud) {

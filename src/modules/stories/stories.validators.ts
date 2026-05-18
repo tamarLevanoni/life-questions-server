@@ -111,6 +111,8 @@ export type StoryResponse = z.infer<typeof StoryResponseSchema>;
 export const SearchStoriesSchema = z
   .object({
     q: z.string().min(1).optional().openapi({ example: 'גנבה בשבת' }),
+    topicId: z.uuid({ error: 'topicId must be a valid UUID' }).optional().openapi({ example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' }),
+    bookId: z.uuid({ error: 'bookId must be a valid UUID' }).optional().openapi({ example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' }),
     masechetId: z.uuid({ error: 'masechetId must be a valid UUID' }).optional().openapi({ example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' }),
     daf: z.coerce.number().int().positive().optional().openapi({ example: 5 }),
     amud: z.enum(['a', 'b']).optional().openapi({ example: 'a' }),

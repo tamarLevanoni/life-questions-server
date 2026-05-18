@@ -23,10 +23,13 @@ beforeEach(async () => {
 });
 
 describe('GET /api/reference/masechtot', () => {
-  it('returns all tractates sorted by orderIndex', async () => {
+  it('returns all tractates sorted by orderIndex with nested pages', async () => {
     const m1 = await seedMasechet({ name: 'בבא קמא', orderIndex: 2 });
     const m2 = await seedMasechet({ name: 'ברכות', orderIndex: 1 });
     const m3 = await seedMasechet({ name: 'סנהדרין', orderIndex: 3 });
+    await seedShasPage(m2.id, 2, 'a');
+    await seedShasPage(m2.id, 2, 'b');
+    await seedShasPage(m2.id, 10, 'a');
 
     const res = await authed('/api/reference/masechtot');
 
@@ -34,13 +37,22 @@ describe('GET /api/reference/masechtot', () => {
     expect(res.body.success).toBe(true);
 
     const ids = new Set([m1.id, m2.id, m3.id]);
-    const seeded: { id: string; name: string; orderIndex: number }[] =
+    const seeded: { id: string; name: string; orderIndex: number; pages: { daf: number; amud: string }[] }[] =
       res.body.data.filter((m: { id: string }) => ids.has(m.id));
 
     expect(seeded).toHaveLength(3);
     expect(seeded[0].name).toBe('ברכות');
     expect(seeded[1].name).toBe('בבא קמא');
     expect(seeded[2].name).toBe('סנהדרין');
+
+    // pages are nested and sorted
+    expect(seeded[0].pages).toHaveLength(3);
+    expect(seeded[0].pages[0]).toMatchObject({ daf: 2, amud: 'a' });
+    expect(seeded[0].pages[1]).toMatchObject({ daf: 2, amud: 'b' });
+    expect(seeded[0].pages[2]).toMatchObject({ daf: 10, amud: 'a' });
+
+    // tractates without pages return empty array
+    expect(seeded[1].pages).toHaveLength(0);
   });
 
   it('returns empty array when no tractates exist', async () => {
@@ -52,42 +64,6 @@ describe('GET /api/reference/masechtot', () => {
 
   it('returns 401 without api-secret header', async () => {
     const res = await request(app).get('/api/reference/masechtot');
-    expect(res.status).toBe(401);
-  });
-});
-
-describe('GET /api/reference/masechtot/:id/pages', () => {
-  it('returns pages for a tractate sorted by daf then amud', async () => {
-    const masechet = await seedMasechet({ name: 'שבת' });
-    await seedShasPage(masechet.id, 10, 'b');
-    await seedShasPage(masechet.id, 5, 'a');
-    await seedShasPage(masechet.id, 5, 'b');
-
-    const res = await authed(`/api/reference/masechtot/${masechet.id}/pages`);
-
-    expect(res.status).toBe(200);
-    expect(res.body.data).toHaveLength(3);
-    expect(res.body.data[0]).toMatchObject({ daf: 5, amud: 'a' });
-    expect(res.body.data[1]).toMatchObject({ daf: 5, amud: 'b' });
-    expect(res.body.data[2]).toMatchObject({ daf: 10, amud: 'b' });
-  });
-
-  it('returns empty array for tractate with no pages', async () => {
-    const masechet = await seedMasechet();
-    const res = await authed(`/api/reference/masechtot/${masechet.id}/pages`);
-
-    expect(res.status).toBe(200);
-    expect(res.body.data).toHaveLength(0);
-  });
-
-  it('returns 400 for invalid UUID', async () => {
-    const res = await authed('/api/reference/masechtot/not-a-uuid/pages');
-    expect(res.status).toBe(400);
-  });
-
-  it('returns 401 without api-secret header', async () => {
-    const masechet = await seedMasechet();
-    const res = await request(app).get(`/api/reference/masechtot/${masechet.id}/pages`);
     expect(res.status).toBe(401);
   });
 });
@@ -114,34 +90,6 @@ describe('GET /api/reference/shu-sections', () => {
 
   it('returns 401 without api-secret header', async () => {
     const res = await request(app).get('/api/reference/shu-sections');
-    expect(res.status).toBe(401);
-  });
-});
-
-describe('GET /api/reference/shu-sections/:sectionId/simanim', () => {
-  it('returns simanim for a section sorted by siman number', async () => {
-    const section = await seedShuSection('יורה דעה');
-    const other = await seedShuSection('חושן משפט');
-    await seedShuSiman(section.id, 87);
-    await seedShuSiman(section.id, 1);
-    await seedShuSiman(other.id, 1);
-
-    const res = await authed(`/api/reference/shu-sections/${section.id}/simanim`);
-
-    expect(res.status).toBe(200);
-    expect(res.body.data).toHaveLength(2);
-    expect(res.body.data[0].siman).toBe(1);
-    expect(res.body.data[1].siman).toBe(87);
-  });
-
-  it('returns 400 for invalid UUID', async () => {
-    const res = await authed('/api/reference/shu-sections/not-a-uuid/simanim');
-    expect(res.status).toBe(400);
-  });
-
-  it('returns 401 without api-secret header', async () => {
-    const section = await seedShuSection();
-    const res = await request(app).get(`/api/reference/shu-sections/${section.id}/simanim`);
     expect(res.status).toBe(401);
   });
 });

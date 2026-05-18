@@ -11,6 +11,19 @@ export const MasechetSchema = z.object({
   orderIndex: z.number().openapi({ example: 1 }),
 }).openapi('Masechet');
 
+export const MasechetWithPagesSchema = z.object({
+  id: z.string().openapi({ example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' }),
+  name: z.string().openapi({ example: 'בבא קמא' }),
+  orderIndex: z.number().openapi({ example: 1 }),
+  pages: z.array(
+    z.object({
+      id: z.string().openapi({ example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' }),
+      daf: z.number().openapi({ example: 5 }),
+      amud: z.string().openapi({ example: 'a' }),
+    })
+  ),
+}).openapi('MasechetWithPages');
+
 export const ShasPageSchema = z.object({
   id: z.string().openapi({ example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' }),
   daf: z.number().openapi({ example: 5 }),

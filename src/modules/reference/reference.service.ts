@@ -12,23 +12,14 @@ export async function getMasechtot() {
 }
 
 function fetchMasechtot() {
-  return prisma.masechet.findMany({ orderBy: { orderIndex: 'asc' } });
-}
-
-export async function getMasechetPages(masechetId: string) {
-  const key = `ref:masechet-pages:${masechetId}`;
-  const cached = cache.get<Awaited<ReturnType<typeof fetchMasechetPages>>>(key);
-  if (cached) return cached;
-  const data = await fetchMasechetPages(masechetId);
-  cache.set(key, data);
-  return data;
-}
-
-function fetchMasechetPages(masechetId: string) {
-  return prisma.shasPage.findMany({
-    where: { masechetId },
-    orderBy: [{ daf: 'asc' }, { amud: 'asc' }],
-    select: { id: true, daf: true, amud: true },
+  return prisma.masechet.findMany({
+    orderBy: { orderIndex: 'asc' },
+    include: {
+      pages: {
+        orderBy: [{ daf: 'asc' }, { amud: 'asc' }],
+        select: { id: true, daf: true, amud: true },
+      },
+    },
   });
 }
 
@@ -50,23 +41,6 @@ function fetchShuSections() {
       },
     },
     orderBy: { name: 'asc' },
-  });
-}
-
-export async function getShuSimanim(sectionId: string) {
-  const key = `ref:shu-simanim:${sectionId}`;
-  const cached = cache.get<Awaited<ReturnType<typeof fetchShuSimanim>>>(key);
-  if (cached) return cached;
-  const data = await fetchShuSimanim(sectionId);
-  cache.set(key, data);
-  return data;
-}
-
-function fetchShuSimanim(sectionId: string) {
-  return prisma.shuSiman.findMany({
-    where: { sectionId },
-    orderBy: { siman: 'asc' },
-    select: { id: true, siman: true, title: true },
   });
 }
 

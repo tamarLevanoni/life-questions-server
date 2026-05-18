@@ -31,15 +31,26 @@ model User {
   @@map("users")
 }
 
+model Book {
+  id     String  @id @default(uuid())
+  name   String  @unique
+
+  topics  Topic[]
+  stories Story[]
+
+  @@map("books")
+}
+
 model Topic {
   id         String  @id @default(uuid())
-  bookNumber Int
+  bookId     String
   name       String
   orderIndex Int
 
+  book    Book    @relation(fields: [bookId], references: [id], onDelete: Cascade)
   stories Story[]
 
-  @@unique([bookNumber, name])
+  @@unique([bookId, name])
   @@map("topics")
 }
 
@@ -90,7 +101,7 @@ model ShasPage {
 
 model Story {
   id                  String   @id @default(uuid())
-  bookNumber          Int
+  bookId              String
   storyOrder          Int
   topicId             String
 
@@ -119,11 +130,12 @@ model Story {
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
+  book      Book  @relation(fields: [bookId], references: [id])
   topic     Topic @relation(fields: [topicId], references: [id])
   shuRefs   StoryToShu[]
   shasRefs  StoryToShas[]
 
-  @@unique([bookNumber, storyOrder])
+  @@unique([bookId, storyOrder])
   @@map("stories")
 }
 

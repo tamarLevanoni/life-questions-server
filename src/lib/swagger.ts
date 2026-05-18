@@ -16,6 +16,7 @@ import {
   StoryNeighborsSchema,
   PaginatedStoriesSchema,
   MasechetSchema,
+  MasechetWithPagesSchema,
   ShasPageSchema,
   ShuSectionSchema,
   ShuSimanSchema,
@@ -255,36 +256,14 @@ registry.registerPath({
   method: 'get',
   path: '/api/reference/masechtot',
   tags: ['Reference'],
-  summary: 'List all tractates (Shas)',
-  description: 'Returns all Talmudic tractates sorted by orderIndex. Cached for 1 hour.',
+  summary: 'List all tractates (Shas) with pages',
+  description: 'Returns all Talmudic tractates sorted by orderIndex, each with its full list of daf/amud pages. Cached.',
   security: [{ ApiSecretAuth: [] }],
   responses: {
     200: {
-      description: 'List of tractates',
-      content: { 'application/json': { schema: StandardSuccessSchema(z.array(MasechetSchema)) } },
+      description: 'List of tractates with nested pages',
+      content: { 'application/json': { schema: StandardSuccessSchema(z.array(MasechetWithPagesSchema)) } },
     },
-    401: { description: 'Unauthorized', content: { 'application/json': { schema: StandardErrorSchema } } },
-  },
-});
-
-// ── GET /api/reference/masechtot/:id/pages ───────────────────────────────────
-
-registry.registerPath({
-  method: 'get',
-  path: '/api/reference/masechtot/{id}/pages',
-  tags: ['Reference'],
-  summary: 'Get pages for a tractate',
-  description: 'Returns all daf/amud combinations for a given tractate. Load after user selects a tractate. Cached for 1 hour.',
-  security: [{ ApiSecretAuth: [] }],
-  request: {
-    params: z.object({ id: UuidParamSchema }),
-  },
-  responses: {
-    200: {
-      description: 'List of pages',
-      content: { 'application/json': { schema: StandardSuccessSchema(z.array(ShasPageSchema)) } },
-    },
-    400: { description: 'Invalid UUID', content: { 'application/json': { schema: StandardErrorSchema } } },
     401: { description: 'Unauthorized', content: { 'application/json': { schema: StandardErrorSchema } } },
   },
 });
@@ -309,28 +288,6 @@ registry.registerPath({
         },
       },
     },
-    401: { description: 'Unauthorized', content: { 'application/json': { schema: StandardErrorSchema } } },
-  },
-});
-
-// ── GET /api/reference/shu-sections/:sectionId/simanim ───────────────────────
-
-registry.registerPath({
-  method: 'get',
-  path: '/api/reference/shu-sections/{sectionId}/simanim',
-  tags: ['Reference'],
-  summary: 'Get simanim for a Shulchan Aruch section',
-  description: 'Returns simanim for a specific section. Cached for 1 hour.',
-  security: [{ ApiSecretAuth: [] }],
-  request: {
-    params: z.object({ sectionId: UuidParamSchema }),
-  },
-  responses: {
-    200: {
-      description: 'List of simanim',
-      content: { 'application/json': { schema: StandardSuccessSchema(z.array(ShuSimanSchema)) } },
-    },
-    400: { description: 'Invalid UUID', content: { 'application/json': { schema: StandardErrorSchema } } },
     401: { description: 'Unauthorized', content: { 'application/json': { schema: StandardErrorSchema } } },
   },
 });

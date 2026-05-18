@@ -114,7 +114,7 @@ export async function searchStories(params: SearchStoriesInput) {
   }
 
   const [stories, total] = await Promise.all([
-    prisma.story.findMany({ where, include: storyInclude, skip, take: limit, orderBy: [{ bookNumber: 'asc' }, { storyOrder: 'asc' }] }),
+    prisma.story.findMany({ where, include: storyInclude, skip, take: limit, orderBy: [{ bookId: 'asc' }, { storyOrder: 'asc' }] }),
     prisma.story.count({ where }),
   ]);
 
@@ -131,12 +131,12 @@ export async function getStoryById(id: string) {
 
   const [prev, next] = await Promise.all([
     prisma.story.findFirst({
-      where: { bookNumber: story.bookNumber, storyOrder: { lt: story.storyOrder } },
+      where: { bookId: story.bookId, storyOrder: { lt: story.storyOrder } },
       orderBy: { storyOrder: 'desc' },
       select: { id: true, title: true },
     }),
     prisma.story.findFirst({
-      where: { bookNumber: story.bookNumber, storyOrder: { gt: story.storyOrder } },
+      where: { bookId: story.bookId, storyOrder: { gt: story.storyOrder } },
       orderBy: { storyOrder: 'asc' },
       select: { id: true, title: true },
     }),

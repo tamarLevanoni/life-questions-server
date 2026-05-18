@@ -2,6 +2,19 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { cache } from '../../lib/cache';
 
+export async function getBooks() {
+  const key = 'ref:books';
+  const cached = cache.get<Awaited<ReturnType<typeof fetchBooks>>>(key);
+  if (cached) return cached;
+  const data = await fetchBooks();
+  cache.set(key, data);
+  return data;
+}
+
+function fetchBooks() {
+  return prisma.book.findMany({ orderBy: { name: 'asc' } });
+}
+
 export async function getMasechtot() {
   const key = 'ref:masechtot';
   const cached = cache.get<Awaited<ReturnType<typeof fetchMasechtot>>>(key);
@@ -55,7 +68,7 @@ export async function getTopics() {
 
 function fetchTopics() {
   return prisma.topic.findMany({
-    orderBy: [{ bookNumber: 'asc' }, { orderIndex: 'asc' }],
+    orderBy: [{ book: { name: 'asc' } }, { orderIndex: 'asc' }],
   });
 }
 

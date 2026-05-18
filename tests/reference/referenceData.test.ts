@@ -3,6 +3,7 @@ import { app } from '../../src/app';
 import { cache } from '../../src/lib/cache';
 import {
   cleanDb,
+  seedBook,
   seedTopic,
   seedStory,
   seedMasechet,
@@ -20,6 +21,31 @@ const authed = (url: string) =>
 beforeEach(async () => {
   cache.clear();
   await cleanDb();
+});
+
+describe('GET /api/reference/books', () => {
+  it('returns books sorted alphabetically by name', async () => {
+    const b1 = await seedBook('ג-שלישי');
+    const b2 = await seedBook('א-ראשון');
+    const b3 = await seedBook('ב-שני');
+
+    const res = await authed('/api/reference/books');
+
+    expect(res.status).toBe(200);
+    const ids = new Set([b1.id, b2.id, b3.id]);
+    const seeded: { id: string; name: string }[] =
+      res.body.data.filter((b: { id: string }) => ids.has(b.id));
+
+    expect(seeded).toHaveLength(3);
+    expect(seeded[0].name).toBe('א-ראשון');
+    expect(seeded[1].name).toBe('ב-שני');
+    expect(seeded[2].name).toBe('ג-שלישי');
+  });
+
+  it('returns 401 without api-secret header', async () => {
+    const res = await request(app).get('/api/reference/books');
+    expect(res.status).toBe(401);
+  });
 });
 
 describe('GET /api/reference/masechtot', () => {
@@ -95,10 +121,13 @@ describe('GET /api/reference/shu-sections', () => {
 });
 
 describe('GET /api/reference/topics', () => {
-  it('returns topics sorted by bookNumber then orderIndex', async () => {
-    const t1 = await seedTopic({ bookNumber: 2, name: 'שבת', orderIndex: 1 });
-    const t2 = await seedTopic({ bookNumber: 1, name: 'נזיקין', orderIndex: 2 });
-    const t3 = await seedTopic({ bookNumber: 1, name: 'ברכות', orderIndex: 1 });
+  it('returns topics sorted by book name then orderIndex', async () => {
+    const bookA = await seedBook('A-first-book');
+    const bookB = await seedBook('B-second-book');
+
+    const t1 = await seedTopic({ bookId: bookB.id, name: 'שבת', orderIndex: 1 });
+    const t2 = await seedTopic({ bookId: bookA.id, name: 'נזיקין', orderIndex: 2 });
+    const t3 = await seedTopic({ bookId: bookA.id, name: 'ברכות', orderIndex: 1 });
 
     const res = await authed('/api/reference/topics');
 
@@ -109,9 +138,9 @@ describe('GET /api/reference/topics', () => {
       res.body.data.filter((t: { id: string }) => ids.has(t.id));
 
     expect(seeded).toHaveLength(3);
-    expect(seeded[0].name).toBe('ברכות');   // bookNumber 1, orderIndex 1
-    expect(seeded[1].name).toBe('נזיקין');  // bookNumber 1, orderIndex 2
-    expect(seeded[2].name).toBe('שבת');     // bookNumber 2, orderIndex 1
+    expect(seeded[0].name).toBe('ברכות');   // bookA, orderIndex 1
+    expect(seeded[1].name).toBe('נזיקין');  // bookA, orderIndex 2
+    expect(seeded[2].name).toBe('שבת');     // bookB, orderIndex 1
   });
 
   it('returns 401 without api-secret header', async () => {

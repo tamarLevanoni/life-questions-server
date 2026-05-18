@@ -1,7 +1,7 @@
 import request from 'supertest';
 import { v4 as uuidv4 } from 'uuid';
 import { app } from '../../src/app';
-import { cleanDb, seedTopic, seedStory } from '../helpers/seed';
+import { cleanDb, seedBook, seedTopic, seedStory } from '../helpers/seed';
 
 const SECRET = process.env.API_SECRET ?? 'test-secret';
 
@@ -15,9 +15,9 @@ beforeEach(async () => {
 describe('GET /api/stories/:id neighbors field', () => {
   it('returns prev and next for a middle story', async () => {
     const topic = await seedTopic();
-    const s1 = await seedStory(topic.id, { bookNumber: 1, storyOrder: 10, title: 'ראשון' });
-    const s2 = await seedStory(topic.id, { bookNumber: 1, storyOrder: 20, title: 'אמצעי' });
-    const s3 = await seedStory(topic.id, { bookNumber: 1, storyOrder: 30, title: 'אחרון' });
+    const s1 = await seedStory(topic.id, { bookId: topic.bookId, storyOrder: 10, title: 'ראשון' });
+    const s2 = await seedStory(topic.id, { bookId: topic.bookId, storyOrder: 20, title: 'אמצעי' });
+    const s3 = await seedStory(topic.id, { bookId: topic.bookId, storyOrder: 30, title: 'אחרון' });
 
     const res = await authed(`/api/stories/${s2.id}`);
 
@@ -29,8 +29,8 @@ describe('GET /api/stories/:id neighbors field', () => {
 
   it('returns null prev for the first story', async () => {
     const topic = await seedTopic();
-    const s1 = await seedStory(topic.id, { bookNumber: 1, storyOrder: 10 });
-    await seedStory(topic.id, { bookNumber: 1, storyOrder: 20 });
+    const s1 = await seedStory(topic.id, { bookId: topic.bookId, storyOrder: 10 });
+    await seedStory(topic.id, { bookId: topic.bookId, storyOrder: 20 });
 
     const res = await authed(`/api/stories/${s1.id}`);
 
@@ -41,8 +41,8 @@ describe('GET /api/stories/:id neighbors field', () => {
 
   it('returns null next for the last story', async () => {
     const topic = await seedTopic();
-    await seedStory(topic.id, { bookNumber: 1, storyOrder: 10 });
-    const s2 = await seedStory(topic.id, { bookNumber: 1, storyOrder: 20 });
+    await seedStory(topic.id, { bookId: topic.bookId, storyOrder: 10 });
+    const s2 = await seedStory(topic.id, { bookId: topic.bookId, storyOrder: 20 });
 
     const res = await authed(`/api/stories/${s2.id}`);
 
@@ -53,7 +53,7 @@ describe('GET /api/stories/:id neighbors field', () => {
 
   it('returns both null for a sole story in the book', async () => {
     const topic = await seedTopic();
-    const story = await seedStory(topic.id, { bookNumber: 1, storyOrder: 10 });
+    const story = await seedStory(topic.id, { bookId: topic.bookId, storyOrder: 10 });
 
     const res = await authed(`/api/stories/${story.id}`);
 
@@ -64,9 +64,12 @@ describe('GET /api/stories/:id neighbors field', () => {
 
   it('does not cross book boundaries', async () => {
     const topic = await seedTopic();
-    await seedStory(topic.id, { bookNumber: 1, storyOrder: 10 });
-    const story = await seedStory(topic.id, { bookNumber: 2, storyOrder: 20 });
-    await seedStory(topic.id, { bookNumber: 3, storyOrder: 30 });
+    const book2 = await seedBook();
+    const book3 = await seedBook();
+
+    await seedStory(topic.id, { bookId: topic.bookId, storyOrder: 10 });
+    const story = await seedStory(topic.id, { bookId: book2.id, storyOrder: 20 });
+    await seedStory(topic.id, { bookId: book3.id, storyOrder: 30 });
 
     const res = await authed(`/api/stories/${story.id}`);
 

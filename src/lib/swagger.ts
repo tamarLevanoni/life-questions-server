@@ -15,6 +15,7 @@ import {
   StoryStubSchema,
   StoryNeighborsSchema,
   PaginatedStoriesSchema,
+  BookSchema,
   MasechetSchema,
   MasechetWithPagesSchema,
   ShasPageSchema,
@@ -250,6 +251,24 @@ registry.registerPath({
   },
 });
 
+// ── GET /api/reference/books ─────────────────────────────────────────────────
+
+registry.registerPath({
+  method: 'get',
+  path: '/api/reference/books',
+  tags: ['Reference'],
+  summary: 'List all books',
+  description: 'Returns all books sorted alphabetically by name. Cached.',
+  security: [{ ApiSecretAuth: [] }],
+  responses: {
+    200: {
+      description: 'List of books',
+      content: { 'application/json': { schema: StandardSuccessSchema(z.array(BookSchema)) } },
+    },
+    401: { description: 'Unauthorized', content: { 'application/json': { schema: StandardErrorSchema } } },
+  },
+});
+
 // ── GET /api/reference/masechtot ─────────────────────────────────────────────
 
 registry.registerPath({
@@ -299,7 +318,7 @@ registry.registerPath({
   path: '/api/reference/topics',
   tags: ['Reference'],
   summary: 'List all topics',
-  description: 'Returns all topics ordered by bookNumber then orderIndex. Cached for 1 hour.',
+  description: 'Returns all topics ordered by book name then orderIndex. Cached for 1 hour.',
   security: [{ ApiSecretAuth: [] }],
   responses: {
     200: {

@@ -1,38 +1,45 @@
 import { v4 as uuidv4 } from 'uuid';
+import type { Prisma } from '@prisma/client';
 import { prisma } from '../../src/lib/prisma';
 
 // Single atomic TRUNCATE avoids FK violations when test files run in parallel.
 // CASCADE handles: story_to_shu, story_to_shas, shu_simanim, shas_pages.
 export async function cleanDb() {
-  await prisma.$executeRaw`TRUNCATE TABLE stories, topics, masechtot, shu_sections CASCADE`;
+  await prisma.$executeRaw`TRUNCATE TABLE stories, topics, books, masechtot, shu_sections CASCADE`;
 }
 
-export async function seedTopic(overrides: Partial<{ bookNumber: number; name: string; orderIndex: number }> = {}) {
+export async function seedBook(name?: string) {
+  return prisma.book.create({
+    data: { name: name ?? `book-${uuidv4()}` },
+  });
+}
+
+export async function seedTopic(overrides: Partial<{ bookId: string; name: string; orderIndex: number }> = {}) {
+  const bookId = overrides.bookId ?? (await seedBook()).id;
   return prisma.topic.create({
     data: {
-      bookNumber: overrides.bookNumber ?? 1,
+      bookId,
       name: overrides.name ?? `topic-${uuidv4()}`,
       orderIndex: overrides.orderIndex ?? 1,
     },
   });
 }
 
-export function storyData(topicId: string, overrides: Record<string, unknown> = {}) {
-  return {
-    bookNumber: 1,
-    storyOrder: Math.floor(Math.random() * 100000),
-    topicId,
-    title: `test-title-${uuidv4()}`,
-    storyBody: `test-body-${uuidv4()}`,
-    legalQuestion: 'האם חייב?',
-    legalQuestionSource: 'בבא קמא ז.',
-    shortAnswer: 'חייב',
-    ...overrides,
-  };
-}
-
-export async function seedStory(topicId: string, overrides: Record<string, unknown> = {}) {
-  return prisma.story.create({ data: storyData(topicId, overrides) });
+export async function seedStory(topicId: string, overrides: Partial<Prisma.StoryUncheckedCreateInput> = {}) {
+  const bookId = overrides.bookId ?? (await prisma.topic.findUniqueOrThrow({ where: { id: topicId } })).bookId;
+  return prisma.story.create({
+    data: {
+      storyOrder: Math.floor(Math.random() * 100000),
+      topicId,
+      title: `test-title-${uuidv4()}`,
+      storyBody: `test-body-${uuidv4()}`,
+      legalQuestion: 'האם חייב?',
+      legalQuestionSource: 'בבא קמא ז.',
+      shortAnswer: 'חייב',
+      ...overrides,
+      bookId,
+    },
+  });
 }
 
 export async function seedMasechet(overrides: Partial<{ name: string; orderIndex: number }> = {}) {

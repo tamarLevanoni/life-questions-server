@@ -3,6 +3,7 @@ import * as ReferenceController from './reference.controller';
 
 const router = Router();
 
+router.get('/books', ReferenceController.getBooks);
 router.get('/masechtot', ReferenceController.getMasechtot);
 router.get('/shu-sections', ReferenceController.getShuSections);
 router.get('/topics', ReferenceController.getTopics);

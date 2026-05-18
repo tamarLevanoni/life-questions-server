@@ -3,6 +3,15 @@ import { sendSuccess } from '../../utils/response';
 import { cache } from '../../lib/cache';
 import * as ReferenceService from './reference.service';
 
+export async function getBooks(_req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const data = await ReferenceService.getBooks();
+    sendSuccess(res, data);
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function getMasechtot(_req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const data = await ReferenceService.getMasechtot();

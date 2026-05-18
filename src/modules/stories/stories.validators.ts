@@ -5,6 +5,11 @@ extendZodWithOpenApi(z);
 
 // ── Nested response schemas ───────────────────────────────────────────────────
 
+export const BookSchema = z.object({
+  id: z.string().openapi({ example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' }),
+  name: z.string().openapi({ example: 'שאלות מהחיים א' }),
+}).openapi('Book');
+
 export const MasechetSchema = z.object({
   id: z.string().openapi({ example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' }),
   name: z.string().openapi({ example: 'בבא קמא' }),
@@ -57,7 +62,7 @@ export const ShuRefSchema = z.object({
 
 export const TopicSchema = z.object({
   id: z.string().openapi({ example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' }),
-  bookNumber: z.number().openapi({ example: 1 }),
+  bookId: z.string().openapi({ example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' }),
   name: z.string().openapi({ example: 'נזיקין' }),
   orderIndex: z.number().openapi({ example: 1 }),
 }).openapi('Topic');
@@ -74,7 +79,7 @@ export const StoryNeighborsSchema = z.object({
 
 export const StoryResponseSchema = z.object({
   id: z.string().openapi({ example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' }),
-  bookNumber: z.number().openapi({ example: 1 }),
+  bookId: z.string().openapi({ example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' }),
   storyOrder: z.number().openapi({ example: 5 }),
   title: z.string().openapi({ example: 'מעשה בגנב שנכנס לחצר' }),
   storyBody: z.string().openapi({ example: 'סיפור המעשה...' }),

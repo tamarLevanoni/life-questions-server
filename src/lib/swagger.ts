@@ -14,13 +14,13 @@ import {
   ShuRefFilterSchema,
   StoryIdParamSchema,
   StoryResponseSchema,
+  StoryCardSchema,
   StoryStubSchema,
   StoryNeighborsSchema,
-  StoriesListSchema,
+  StoriesCardListSchema,
   BookSchema,
   MasechetSchema,
   MasechetWithPagesSchema,
-  ShasPageSchema,
   ShuSectionSchema,
   ShuSimanSchema,
   TopicSchema,
@@ -187,9 +187,10 @@ registry.registerPath({
 });
 
 registry.register('StoryResponse', StoryResponseSchema);
+registry.register('StoryCard', StoryCardSchema);
 registry.register('ShasRefFilter', ShasRefFilterSchema);
 registry.register('ShuRefFilter', ShuRefFilterSchema);
-registry.register('StoriesList', StoriesListSchema);
+registry.register('StoriesCardList', StoriesCardListSchema);
 registry.register('SearchStoriesBody', SearchStoriesSchema);
 
 // ── POST /api/stories/search ──────────────────────────────────────────────────
@@ -209,7 +210,7 @@ registry.registerPath({
   responses: {
     200: {
       description: 'Paginated list of stories matching filters',
-      content: { 'application/json': { schema: StandardSuccessSchema(StoriesListSchema) } },
+      content: { 'application/json': { schema: StandardSuccessSchema(StoriesCardListSchema) } },
     },
     401: {
       description: 'Missing or invalid x-api-secret header',

@@ -99,14 +99,23 @@ export const StoryResponseSchema = z.object({
   neighbors: StoryNeighborsSchema,
 }).openapi('StoryResponse');
 
-export const StoriesListSchema = z.object({
-  stories: z.array(StoryResponseSchema),
+export const StoryCardSchema = z.object({
+  id: z.string().openapi({ example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' }),
+  bookId: z.string().openapi({ example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' }),
+  storyOrder: z.number().openapi({ example: 5 }),
+  topicId: z.string().openapi({ example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' }),
+  title: z.string().openapi({ example: 'מעשה בגנב שנכנס לחצר' }),
+  legalQuestion: z.string().openapi({ example: 'האם חייב לשלם?' }),
+  videoUrl: z.string().nullable().openapi({ example: null }),
+  shuRefs: z.array(ShuRefSchema).openapi({ description: 'Shulchan Aruch siman/seif references' }),
+}).openapi('StoryCard');
+
+export const StoriesCardListSchema = z.object({
+  stories: z.array(StoryCardSchema),
   total: z.number().openapi({ example: 142 }),
   page: z.number().openapi({ example: 1 }),
   limit: z.number().openapi({ example: 20 }),
-}).openapi('StoriesList');
-
-export type StoryResponse = z.infer<typeof StoryResponseSchema>;
+}).openapi('StoriesCardList');
 
 export const ShasRefFilterSchema = z.object({
   masechetId: z.uuid({ error: 'masechetId must be a valid UUID' }).openapi({ example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' }),

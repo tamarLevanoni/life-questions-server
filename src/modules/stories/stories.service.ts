@@ -3,24 +3,7 @@ import { prisma } from '../../lib/prisma';
 import { embedText } from '../../lib/openai';
 import { NotFoundError } from '../../types';
 import { SearchStoriesInput } from './stories.validators';
-
-const storyInclude = {
-  topic: true,
-  shuRefs: {
-    include: {
-      shuSiman: {
-        include: { section: true },
-      },
-    },
-  },
-  shasRefs: {
-    include: {
-      shasPage: {
-        include: { masechet: true },
-      },
-    },
-  },
-} satisfies Prisma.StoryInclude;
+import { storyInclude, storyCardInclude, storyCardOmit } from './stories.queries';
 
 export async function searchStories(params: SearchStoriesInput) {
   const { q, topicIds, bookIds, shasRefs, shuRefs, concepts, page, limit } = params;
@@ -126,7 +109,7 @@ export async function searchStories(params: SearchStoriesInput) {
       where.id = { in: candidateIds };
 
       const [stories, total] = await Promise.all([
-        prisma.story.findMany({ where, include: storyInclude, skip, take: limit }),
+        prisma.story.findMany({ where, omit: storyCardOmit, include: storyCardInclude, skip, take: limit }),
         prisma.story.count({ where }),
       ]);
 
@@ -148,7 +131,7 @@ export async function searchStories(params: SearchStoriesInput) {
   }
 
   const [stories, total] = await Promise.all([
-    prisma.story.findMany({ where, include: storyInclude, skip, take: limit, orderBy: [{ bookId: 'asc' }, { storyOrder: 'asc' }] }),
+    prisma.story.findMany({ where, omit: storyCardOmit, include: storyCardInclude, skip, take: limit, orderBy: [{ bookId: 'asc' }, { storyOrder: 'asc' }] }),
     prisma.story.count({ where }),
   ]);
 

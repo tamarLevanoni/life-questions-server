@@ -24,7 +24,7 @@ export const MasechetWithPagesSchema = z.object({
     z.object({
       id: z.string().openapi({ example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' }),
       daf: z.number().openapi({ example: 5 }),
-      amud: z.string().openapi({ example: 'a' }),
+      amud: z.enum(['א', 'ב', '']).openapi({ example: 'א' }),
     })
   ),
 }).openapi('MasechetWithPages');
@@ -32,7 +32,7 @@ export const MasechetWithPagesSchema = z.object({
 export const ShasPageSchema = z.object({
   id: z.string().openapi({ example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' }),
   daf: z.number().openapi({ example: 5 }),
-  amud: z.string().openapi({ example: 'a' }),
+  amud: z.enum(['א', 'ב', '']).openapi({ example: 'א' }),
   masechet: MasechetSchema,
 }).openapi('ShasPage');
 
@@ -89,6 +89,7 @@ export const StoryResponseSchema = z.object({
   expansion: z.string().nullable().openapi({ example: 'הרחבה מפורטת...' }),
   conceptsAi: z.array(z.string()).openapi({ example: ['גנבה', 'נזיקין'] }),
   conceptsFromIndex: z.array(z.string()).openapi({ example: ['גנבה'] }),
+  sourceReferencesText: z.string().nullable().openapi({ example: 'בבא קמא ז. - ח.' }),
   videoUrl: z.string().nullable().openapi({ example: null }),
   imageUrl: z.string().nullable().openapi({ example: null }),
   topic: TopicSchema,

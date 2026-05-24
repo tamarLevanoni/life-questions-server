@@ -10,11 +10,13 @@ import {
 // Note: extendZodWithOpenApi(z) is called in users.validators.ts — importing it first ensures it runs before this module
 import {
   SearchStoriesSchema,
+  ShasRefFilterSchema,
+  ShuRefFilterSchema,
   StoryIdParamSchema,
   StoryResponseSchema,
   StoryStubSchema,
   StoryNeighborsSchema,
-  PaginatedStoriesSchema,
+  StoriesListSchema,
   BookSchema,
   MasechetSchema,
   MasechetWithPagesSchema,
@@ -185,32 +187,36 @@ registry.registerPath({
 });
 
 registry.register('StoryResponse', StoryResponseSchema);
-registry.register('PaginatedStories', PaginatedStoriesSchema);
-registry.register('SearchStoriesQuery', SearchStoriesSchema);
+registry.register('ShasRefFilter', ShasRefFilterSchema);
+registry.register('ShuRefFilter', ShuRefFilterSchema);
+registry.register('StoriesList', StoriesListSchema);
+registry.register('SearchStoriesBody', SearchStoriesSchema);
 
-// ── GET /api/stories ──────────────────────────────────────────────────────────
+// ── POST /api/stories/search ──────────────────────────────────────────────────
 
 registry.registerPath({
-  method: 'get',
-  path: '/api/stories',
+  method: 'post',
+  path: '/api/stories/search',
   tags: ['Stories'],
   summary: 'Search stories',
-  description: 'Hybrid search: vector similarity (pgvector, cosine) when embeddings exist, falls back to ILIKE. Use `minSimilarity` (0–1) to filter out low-confidence vector results. Supports filtering by Shas reference, Shulchan Aruch reference, or concept tag. Paginated.',
+  description: 'Hybrid search: vector similarity (pgvector, cosine) when embeddings exist, falls back to ILIKE. Supports multi-value filtering by bookIds, topicIds, masechetIds, shuSectionIds, simanIds, and concepts arrays. Paginated.',
   security: [{ ApiSecretAuth: [] }],
   request: {
-    query: SearchStoriesSchema,
+    body: {
+      content: { 'application/json': { schema: SearchStoriesSchema } },
+    },
   },
   responses: {
     200: {
       description: 'Paginated list of stories matching filters',
-      content: { 'application/json': { schema: StandardSuccessSchema(PaginatedStoriesSchema) } },
+      content: { 'application/json': { schema: StandardSuccessSchema(StoriesListSchema) } },
     },
     401: {
       description: 'Missing or invalid x-api-secret header',
       content: { 'application/json': { schema: StandardErrorSchema } },
     },
     422: {
-      description: 'Invalid query parameters',
+      description: 'Invalid request body',
       content: { 'application/json': { schema: StandardErrorSchema } },
     },
   },

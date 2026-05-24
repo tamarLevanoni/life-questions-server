@@ -5,7 +5,7 @@ import * as StoriesService from './stories.service';
 
 export async function searchStories(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const parsed = SearchStoriesSchema.safeParse(req.query);
+    const parsed = SearchStoriesSchema.safeParse(req.body);
     if (!parsed.success) {
       sendError(res, parsed.error.format(), 422);
       return;

@@ -99,31 +99,41 @@ export const StoryResponseSchema = z.object({
   neighbors: StoryNeighborsSchema,
 }).openapi('StoryResponse');
 
-export const PaginatedStoriesSchema = z.object({
+export const StoriesListSchema = z.object({
   stories: z.array(StoryResponseSchema),
   total: z.number().openapi({ example: 142 }),
   page: z.number().openapi({ example: 1 }),
   limit: z.number().openapi({ example: 20 }),
-}).openapi('PaginatedStories');
+}).openapi('StoriesList');
 
 export type StoryResponse = z.infer<typeof StoryResponseSchema>;
+
+export const ShasRefFilterSchema = z.object({
+  masechetId: z.uuid({ error: 'masechetId must be a valid UUID' }).openapi({ example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' }),
+  daf: z.number().int().positive().optional().openapi({ example: 7 }),
+}).openapi('ShasRefFilter');
+
+export const ShuRefFilterSchema = z.object({
+  shuSectionId: z.uuid({ error: 'shuSectionId must be a valid UUID' }).openapi({ example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' }),
+  simanId: z.uuid({ error: 'simanId must be a valid UUID' }).optional().openapi({ example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' }),
+  seif: z.number().int().positive().optional().openapi({ example: 3 }),
+}).refine(
+  (data) => data.seif === undefined || data.simanId !== undefined,
+  { message: 'seif requires simanId', path: ['seif'] }
+).openapi('ShuRefFilter');
 
 export const SearchStoriesSchema = z
   .object({
     q: z.string().min(1).optional().openapi({ example: 'גנבה בשבת' }),
-    topicId: z.uuid({ error: 'topicId must be a valid UUID' }).optional().openapi({ example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' }),
-    bookId: z.uuid({ error: 'bookId must be a valid UUID' }).optional().openapi({ example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' }),
-    masechetId: z.uuid({ error: 'masechetId must be a valid UUID' }).optional().openapi({ example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' }),
-    daf: z.coerce.number().int().positive().optional().openapi({ example: 5 }),
-    amud: z.enum(['a', 'b']).optional().openapi({ example: 'a' }),
-    shuSectionId: z.uuid({ error: 'shuSectionId must be a valid UUID' }).optional().openapi({ example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' }),
-    simanId: z.uuid({ error: 'simanId must be a valid UUID' }).optional().openapi({ example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' }),
-    seif: z.coerce.number().int().positive().optional().openapi({ example: 3 }),
-    concept: z.string().min(1).optional().openapi({ example: 'ריבית' }),
-    page: z.coerce.number().int().positive().default(1).openapi({ example: 1 }),
-    limit: z.coerce.number().int().positive().max(50).default(20).openapi({ example: 20 }),
+    topicIds: z.array(z.uuid({ error: 'each topicId must be a valid UUID' })).optional().openapi({ example: ['a1b2c3d4-e5f6-7890-abcd-ef1234567890'] }),
+    bookIds: z.array(z.uuid({ error: 'each bookId must be a valid UUID' })).optional().openapi({ example: ['a1b2c3d4-e5f6-7890-abcd-ef1234567890'] }),
+    shasRefs: z.array(ShasRefFilterSchema).optional().openapi({ description: 'Filter by Shas references — story must match at least one entry' }),
+    shuRefs: z.array(ShuRefFilterSchema).optional().openapi({ description: 'Filter by Shulchan Aruch references — story must match at least one entry' }),
+    concepts: z.array(z.string().min(1)).optional().openapi({ example: ['ריבית', 'גנבה'] }),
+    page: z.number().int().positive().default(1).openapi({ example: 1 }),
+    limit: z.number().int().positive().max(50).default(20).openapi({ example: 20 }),
   })
-  .openapi('SearchStoriesQuery');
+  .openapi('SearchStoriesBody');
 
 export const StoryIdParamSchema = z
   .uuid({ error: 'id must be a valid UUID' })

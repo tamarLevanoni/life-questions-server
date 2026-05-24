@@ -23,49 +23,46 @@ const storyInclude = {
 } satisfies Prisma.StoryInclude;
 
 export async function searchStories(params: SearchStoriesInput) {
-  const { q, topicId, bookId, masechetId, daf, amud, shuSectionId, simanId, seif, concept, page, limit } = params;
+  const { q, topicIds, bookIds, shasRefs, shuRefs, concepts, page, limit } = params;
   const skip = (page - 1) * limit;
 
-  // Build base Prisma where clause
   const where: Prisma.StoryWhereInput = {};
 
-  if (topicId) where.topicId = topicId;
-  if (bookId) where.bookId = bookId;
+  if (topicIds && topicIds.length > 0) where.topicId = { in: topicIds };
+  if (bookIds && bookIds.length > 0) where.bookId = { in: bookIds };
 
-  // Shas filters
-  if (masechetId || daf !== undefined || amud) {
+  // Shas filters — story must have at least one ref matching any of the filter objects
+  if (shasRefs && shasRefs.length > 0) {
     where.shasRefs = {
       some: {
-        shasPage: {
-          ...(masechetId ? { masechetId } : {}),
-          ...(daf !== undefined ? { daf } : {}),
-          ...(amud ? { amud } : {}),
-        },
+        OR: shasRefs.map((ref) => ({
+          shasPage: {
+            masechetId: ref.masechetId,
+            ...(ref.daf !== undefined ? { daf: ref.daf } : {}),
+          },
+        })),
       },
     };
   }
 
-  // Shu filters
-  if (shuSectionId || simanId) {
+  // Shu filters — story must have at least one ref matching any of the filter objects
+  if (shuRefs && shuRefs.length > 0) {
     where.shuRefs = {
       some: {
-        ...(simanId ? { shuSimanId: simanId } : {}),
-        ...(seif !== undefined ? { seif } : {}),
-        ...(shuSectionId && !simanId
-          ? { shuSiman: { sectionId: shuSectionId } }
-          : {}),
+        OR: shuRefs.map((ref) => ({
+          ...(ref.simanId ? { shuSimanId: ref.simanId } : { shuSiman: { sectionId: ref.shuSectionId } }),
+          ...(ref.seif !== undefined ? { seif: ref.seif } : {}),
+        })),
       },
     };
-  } else if (seif !== undefined) {
-    where.shuRefs = { some: { seif } };
   }
 
-  // Concept filter
-  if (concept) {
-    where.OR = [
-      { conceptsAi: { has: concept } },
-      { conceptsFromIndex: { has: concept } },
-    ];
+  // Concepts filter — story must match at least one concept from the list
+  if (concepts && concepts.length > 0) {
+    where.OR = concepts.flatMap((c) => [
+      { conceptsAi: { has: c } },
+      { conceptsFromIndex: { has: c } },
+    ]);
   }
 
   // Vector search path
@@ -75,18 +72,52 @@ export async function searchStories(params: SearchStoriesInput) {
     try {
       const vector = await embedText(q);
       const vectorLiteral = `[${vector.join(',')}]`;
+      const keywordPattern = `%${q}%`;
 
-      // Cosine distance threshold: 0.3 ≈ 70% similarity — filters clearly irrelevant results
-      const rows = await prisma.$queryRaw<{ id: string }[]>(
+      // 1. Semantic candidates (wide net, no threshold)
+      const semanticRows = await prisma.$queryRaw<{ id: string; distance: number }[]>(
         Prisma.sql`
-          SELECT id FROM stories
+          SELECT id, (embedding <=> ${vectorLiteral}::vector) AS distance
+          FROM stories
           WHERE embedding IS NOT NULL
-            AND (embedding <=> ${vectorLiteral}::vector) <= 0.4
           ORDER BY embedding <=> ${vectorLiteral}::vector
           LIMIT 200
         `
       );
-      candidateIds = rows.map((r) => r.id);
+
+      // 2. Keyword matches on all text fields + topic name
+      const keywordRows = await prisma.$queryRaw<{ id: string }[]>(
+        Prisma.sql`
+          SELECT s.id FROM stories s
+          LEFT JOIN topics t ON s."topicId" = t.id
+          WHERE s."searchText" ILIKE ${keywordPattern}
+             OR s.title        ILIKE ${keywordPattern}
+             OR t.name         ILIKE ${keywordPattern}
+             OR EXISTS (SELECT 1 FROM unnest(s."conceptsAi")        c WHERE c ILIKE ${keywordPattern})
+             OR EXISTS (SELECT 1 FROM unnest(s."keywordsAi")        k WHERE k ILIKE ${keywordPattern})
+             OR EXISTS (SELECT 1 FROM unnest(s."conceptsFromIndex") c WHERE c ILIKE ${keywordPattern})
+             OR EXISTS (SELECT 1 FROM unnest(s."keywordsFromIndex") k WHERE k ILIKE ${keywordPattern})
+        `
+      );
+
+      // 3. Merge: keyword hits always pass; threshold filters only pure-semantic results
+      const keywordSet = new Set(keywordRows.map((r) => r.id));
+      const SEMANTIC_THRESHOLD = 0.6;
+      const scored = semanticRows
+        .filter((r) => keywordSet.has(r.id) || r.distance <= SEMANTIC_THRESHOLD)
+        .map((r) => ({
+          id: r.id,
+          score: r.distance - (keywordSet.has(r.id) ? 0.25 : 0),
+        }));
+
+      // 4. Add pure keyword matches not in semantic results
+      const semanticIds = new Set(semanticRows.map((r) => r.id));
+      for (const r of keywordRows) {
+        if (!semanticIds.has(r.id)) scored.push({ id: r.id, score: 0.1 });
+      }
+
+      scored.sort((a, b) => a.score - b.score);
+      candidateIds = scored.map((r) => r.id);
     } catch {
       // Fallback to text search if embedding fails (e.g. no OPENAI_API_KEY in tests)
     }

@@ -35,6 +35,8 @@ function storySection(data: ContactInput): string {
 export async function sendContactEmail(data: ContactInput): Promise<void> {
   const to = process.env.CONTACT_EMAIL_TO;
   if (!to) throw new Error('CONTACT_EMAIL_TO is not set');
+  const to2 = process.env.CONTACT_EMAIL_TO_2;
+  const recipients = to2 ? [to, to2] : [to];
 
   const pageUrlRow = data.pageUrl
     ? `<tr><td style="white-space:nowrap;width:1%;padding:4px 8px"><strong>Page URL</strong></td><td style="padding:4px 8px">${data.pageUrl}</td></tr>`
@@ -42,7 +44,7 @@ export async function sendContactEmail(data: ContactInput): Promise<void> {
 
   await getResend().emails.send({
     from:    'contact@th-lod.org',
-    to,
+    to:      recipients,
     replyTo: data.email,
     subject: `[${categoryLabel[data.category]}] ${data.subject}`,
     html: `

@@ -162,3 +162,25 @@ model StoryToShas {
   @@id([storyId, shasPageId])
   @@map("story_to_shas")
 }
+
+enum ContactCategory {
+  general
+  bug
+  collaboration
+  story_question
+}
+
+model ContactMessage {
+  id        String          @id @default(uuid())
+  name      String
+  email     String
+  category  ContactCategory
+  subject   String
+  message   String
+  pageUrl   String?
+  storyId   String?
+
+  createdAt DateTime @default(now())
+
+  @@map("contact_messages")
+}

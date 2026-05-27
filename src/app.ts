@@ -8,6 +8,7 @@ import { notFoundMiddleware } from './middleware/notFound.middleware';
 import { usersRouter } from './modules/users/users.router';
 import { storiesRouter } from './modules/stories/stories.router';
 import { referenceRouter } from './modules/reference/reference.router';
+import { contactRouter } from './modules/contact/contact.router';
 
 // Swagger — only loaded in development to keep the production bundle clean
 let swaggerUi: typeof import('swagger-ui-express') | null = null;
@@ -73,6 +74,7 @@ app.use(apiSecretMiddleware);
 app.use('/api/users', usersRouter);
 app.use('/api/stories', storiesRouter);
 app.use('/api/reference', referenceRouter);
+app.use('/api/contact', contactRouter);
 
 // 404 fallback
 app.use(notFoundMiddleware);

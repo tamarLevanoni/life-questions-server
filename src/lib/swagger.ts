@@ -8,6 +8,7 @@ import {
   GoogleIdParamSchema,
 } from '../modules/users/users.validators';
 // Note: extendZodWithOpenApi(z) is called in users.validators.ts — importing it first ensures it runs before this module
+import { ContactSchema } from '../modules/contact/contact.validators';
 import {
   SearchStoriesSchema,
   ShasRefFilterSchema,
@@ -373,6 +374,56 @@ registry.registerPath({
       },
     },
     401: { description: 'Unauthorized', content: { 'application/json': { schema: StandardErrorSchema } } },
+  },
+});
+
+// ── POST /api/contact ─────────────────────────────────────────────────────────
+
+registry.register('ContactRequest', ContactSchema);
+
+const ContactResponseSchema = z
+  .object({
+    id: z.uuid().openapi({ example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' }),
+    name: z.string().openapi({ example: 'ישראל ישראלי' }),
+    email: z.email().openapi({ example: 'israel@example.com' }),
+    category: z.enum(['general', 'bug', 'collaboration']).openapi({ example: 'general' }),
+    subject: z.string().openapi({ example: 'שאלה לגבי תכנים' }),
+    message: z.string().openapi({ example: 'שלום, אני רוצה לשאול...' }),
+    pageUrl: z.string().nullable().openapi({ example: null }),
+    createdAt: z.iso.datetime().openapi({ example: '2024-01-15T10:30:00.000Z' }),
+  })
+  .openapi('ContactResponse');
+
+registry.registerPath({
+  method: 'post',
+  path: '/api/contact',
+  tags: ['Contact'],
+  summary: 'Submit a contact form',
+  description: 'Saves the message to the database and sends a notification email to the site owner.',
+  security: [{ ApiSecretAuth: [] }],
+  request: {
+    body: {
+      required: true,
+      content: {
+        'application/json': { schema: ContactSchema },
+      },
+    },
+  },
+  responses: {
+    201: {
+      description: 'Message received and email sent',
+      content: {
+        'application/json': { schema: StandardSuccessSchema(ContactResponseSchema) },
+      },
+    },
+    401: {
+      description: 'Missing or invalid x-api-secret header',
+      content: { 'application/json': { schema: StandardErrorSchema } },
+    },
+    422: {
+      description: 'Request body failed validation',
+      content: { 'application/json': { schema: StandardErrorSchema } },
+    },
   },
 });
 

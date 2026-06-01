@@ -95,6 +95,7 @@ export const StoryResponseSchema = z.object({
   topic: TopicSchema,
   shasRefs: z.array(ShasRefSchema).openapi({ description: 'Shas (Talmud) page references' }),
   shuRefs: z.array(ShuRefSchema).openapi({ description: 'Shulchan Aruch siman/seif references' }),
+  centralShuSiman: ShuSimanSchema.nullable().openapi({ description: 'Primary Shulchan Aruch siman for this story' }),
   createdAt: z.iso.datetime().openapi({ example: '2024-01-15T10:30:00.000Z' }),
   updatedAt: z.iso.datetime().openapi({ example: '2024-06-01T08:00:00.000Z' }),
   neighbors: StoryNeighborsSchema,
@@ -109,6 +110,7 @@ export const StoryCardSchema = z.object({
   legalQuestion: z.string().openapi({ example: 'האם חייב לשלם?' }),
   videoUrl: z.string().nullable().openapi({ example: null }),
   shuRefs: z.array(ShuRefSchema).openapi({ description: 'Shulchan Aruch siman/seif references' }),
+  centralShuSiman: ShuSimanSchema.nullable().openapi({ description: 'Primary Shulchan Aruch siman for this story' }),
 }).openapi('StoryCard');
 
 export const StoriesCardListSchema = z.object({

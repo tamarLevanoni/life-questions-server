@@ -16,6 +16,9 @@ export const storyInclude = {
       },
     },
   },
+  centralShuSiman: {
+    include: { section: true },
+  },
 } satisfies Prisma.StoryInclude;
 
 export const storyCardInclude = {
@@ -25,6 +28,9 @@ export const storyCardInclude = {
         include: { section: true },
       },
     },
+  },
+  centralShuSiman: {
+    include: { section: true },
   },
 } satisfies Prisma.StoryInclude;
 
@@ -42,6 +48,7 @@ export const storyCardOmit = {
   keywordsFromIndex: true,
   searchText: true,
   embeddingModel: true,
+  centralShuSimanId: true,
   createdAt: true,
   updatedAt: true,
 } satisfies Prisma.StoryOmit;

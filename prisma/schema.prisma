@@ -69,8 +69,9 @@ model ShuSiman {
   siman     Int
   title     String?
 
-  section ShuSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
-  stories StoryToShu[]
+  section        ShuSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  stories        StoryToShu[]
+  storiesAsPrimary Story[] @relation("StoryCentralSiman")
 
   @@unique([sectionId, siman])
   @@map("shu_simanim")
@@ -127,13 +128,16 @@ model Story {
   videoUrl            String?
   imageUrl            String?
 
+  centralShuSimanId   String?
+
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
-  book      Book  @relation(fields: [bookId], references: [id])
-  topic     Topic @relation(fields: [topicId], references: [id])
-  shuRefs   StoryToShu[]
-  shasRefs  StoryToShas[]
+  book            Book       @relation(fields: [bookId], references: [id])
+  topic           Topic      @relation(fields: [topicId], references: [id])
+  shuRefs         StoryToShu[]
+  shasRefs        StoryToShas[]
+  centralShuSiman ShuSiman?  @relation("StoryCentralSiman", fields: [centralShuSimanId], references: [id])
 
   @@unique([bookId, storyOrder])
   @@map("stories")

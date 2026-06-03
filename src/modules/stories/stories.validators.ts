@@ -101,6 +101,8 @@ export const StoryResponseSchema = z.object({
   neighbors: StoryNeighborsSchema,
 }).openapi('StoryResponse');
 
+export const FullStorySchema = StoryResponseSchema.omit({ neighbors: true }).openapi('FullStory');
+
 export const StoryCardSchema = z.object({
   id: z.string().openapi({ example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' }),
   bookId: z.string().openapi({ example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' }),

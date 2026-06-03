@@ -138,6 +138,23 @@ export async function searchStories(params: SearchStoriesInput) {
   return { stories, total, page, limit };
 }
 
+export async function getFeaturedFullStories(count: number) {
+  const rows = await prisma.$queryRaw<{ id: string }[]>(
+    Prisma.sql`SELECT id FROM stories ORDER BY RANDOM() LIMIT ${count}`
+  );
+  const ids = rows.map((r) => r.id);
+  if (ids.length === 0) return [];
+
+  const stories = await prisma.story.findMany({
+    where: { id: { in: ids } },
+    include: storyInclude,
+  });
+
+  const order = new Map(ids.map((id, i) => [id, i]));
+  stories.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
+  return stories;
+}
+
 export async function getStoryById(id: string) {
   const story = await prisma.story.findUnique({
     where: { id },

@@ -15,6 +15,7 @@ import {
   ShuRefFilterSchema,
   StoryIdParamSchema,
   StoryResponseSchema,
+  FullStorySchema,
   StoryCardSchema,
   StoryStubSchema,
   StoryNeighborsSchema,
@@ -188,6 +189,7 @@ registry.registerPath({
 });
 
 registry.register('StoryResponse', StoryResponseSchema);
+registry.register('FullStory', FullStorySchema);
 registry.register('StoryCard', StoryCardSchema);
 registry.register('ShasRefFilter', ShasRefFilterSchema);
 registry.register('ShuRefFilter', ShuRefFilterSchema);
@@ -219,6 +221,27 @@ registry.registerPath({
     },
     422: {
       description: 'Invalid request body',
+      content: { 'application/json': { schema: StandardErrorSchema } },
+    },
+  },
+});
+
+// ── GET /api/stories/featured ─────────────────────────────────────────────────
+
+registry.registerPath({
+  method: 'get',
+  path: '/api/stories/featured',
+  tags: ['Stories'],
+  summary: 'Get featured full stories',
+  description: 'Returns 3 random stories with all fields and references (Shas, Shu, topic, central siman). Intended for homepage / showcase use.',
+  security: [{ ApiSecretAuth: [] }],
+  responses: {
+    200: {
+      description: 'Array of 3 random full stories (may be fewer if the database has less than 3)',
+      content: { 'application/json': { schema: StandardSuccessSchema(z.array(FullStorySchema)) } },
+    },
+    401: {
+      description: 'Missing or invalid x-api-secret header',
       content: { 'application/json': { schema: StandardErrorSchema } },
     },
   },

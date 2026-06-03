@@ -17,6 +17,15 @@ export async function searchStories(req: Request, res: Response, next: NextFunct
   }
 }
 
+export async function getFeaturedFullStories(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const stories = await StoriesService.getFeaturedFullStories(3);
+    sendSuccess(res, stories);
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function getStoryById(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const parsed = StoryIdParamSchema.safeParse(req.params.id);

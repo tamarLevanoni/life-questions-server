@@ -8,9 +8,16 @@ export async function cleanDb() {
   await prisma.$executeRaw`TRUNCATE TABLE stories, topics, books, masechtot, shu_sections CASCADE`;
 }
 
-export async function seedBook(name?: string) {
+export async function seedBook(
+  name?: string,
+  overrides: Partial<{ orderIndex: number; coverUrl: string | null }> = {}
+) {
   return prisma.book.create({
-    data: { name: name ?? `book-${uuidv4()}` },
+    data: {
+      name: name ?? `book-${uuidv4()}`,
+      orderIndex: overrides.orderIndex ?? 1,
+      coverUrl: overrides.coverUrl,
+    },
   });
 }
 

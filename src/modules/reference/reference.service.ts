@@ -12,7 +12,7 @@ export async function getBooks() {
 }
 
 function fetchBooks() {
-  return prisma.book.findMany({ orderBy: { name: 'asc' } });
+  return prisma.book.findMany({ orderBy: { orderIndex: 'asc' } });
 }
 
 export async function getMasechtot() {

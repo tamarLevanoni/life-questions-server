@@ -32,8 +32,10 @@ model User {
 }
 
 model Book {
-  id     String  @id @default(uuid())
-  name   String  @unique
+  id         String  @id @default(uuid())
+  name       String  @unique
+  orderIndex Int
+  coverUrl   String?
 
   topics  Topic[]
   stories Story[]

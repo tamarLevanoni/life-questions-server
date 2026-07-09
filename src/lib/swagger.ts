@@ -289,7 +289,7 @@ registry.registerPath({
   path: '/api/reference/books',
   tags: ['Reference'],
   summary: 'List all books',
-  description: 'Returns all books sorted alphabetically by name. Cached.',
+  description: 'Returns all books sorted by orderIndex. Cached.',
   security: [{ ApiSecretAuth: [] }],
   responses: {
     200: {

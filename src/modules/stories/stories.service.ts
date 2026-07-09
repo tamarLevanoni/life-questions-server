@@ -139,10 +139,23 @@ export async function searchStories(params: SearchStoriesInput) {
 }
 
 export async function getFeaturedFullStories(count: number) {
-  const rows = await prisma.$queryRaw<{ id: string }[]>(
-    Prisma.sql`SELECT id FROM stories ORDER BY RANDOM() LIMIT ${count}`
+  // First, try to fill with stories that have a video
+  const withVideoRows = await prisma.$queryRaw<{ id: string }[]>(
+    Prisma.sql`SELECT id FROM stories WHERE "videoUrl" IS NOT NULL ORDER BY RANDOM() LIMIT ${count}`
   );
-  const ids = rows.map((r) => r.id);
+  const withVideoIds = withVideoRows.map((r) => r.id);
+
+  let ids = withVideoIds;
+
+  // Fill remaining slots with stories without a video
+  if (withVideoIds.length < count) {
+    const remaining = count - withVideoIds.length;
+    const withoutVideoRows = await prisma.$queryRaw<{ id: string }[]>(
+      Prisma.sql`SELECT id FROM stories WHERE "videoUrl" IS NULL ORDER BY RANDOM() LIMIT ${remaining}`
+    );
+    ids = [...withVideoIds, ...withoutVideoRows.map((r) => r.id)];
+  }
+
   if (ids.length === 0) return [];
 
   const stories = await prisma.story.findMany({

@@ -24,20 +24,22 @@ beforeEach(async () => {
 });
 
 describe('GET /api/reference/books', () => {
-  it('returns books sorted alphabetically by name', async () => {
-    const b1 = await seedBook('ג-שלישי');
-    const b2 = await seedBook('א-ראשון');
-    const b3 = await seedBook('ב-שני');
+  it('returns books sorted by orderIndex, including coverUrl', async () => {
+    const b1 = await seedBook('ג-שלישי', { orderIndex: 3 });
+    const b2 = await seedBook('א-ראשון', { orderIndex: 1, coverUrl: 'https://example.com/1.png' });
+    const b3 = await seedBook('ב-שני', { orderIndex: 2 });
 
     const res = await authed('/api/reference/books');
 
     expect(res.status).toBe(200);
     const ids = new Set([b1.id, b2.id, b3.id]);
-    const seeded: { id: string; name: string }[] =
+    const seeded: { id: string; name: string; orderIndex: number; coverUrl: string | null }[] =
       res.body.data.filter((b: { id: string }) => ids.has(b.id));
 
     expect(seeded).toHaveLength(3);
     expect(seeded[0].name).toBe('א-ראשון');
+    expect(seeded[0].orderIndex).toBe(1);
+    expect(seeded[0].coverUrl).toBe('https://example.com/1.png');
     expect(seeded[1].name).toBe('ב-שני');
     expect(seeded[2].name).toBe('ג-שלישי');
   });

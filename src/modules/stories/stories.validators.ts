@@ -8,6 +8,8 @@ extendZodWithOpenApi(z);
 export const BookSchema = z.object({
   id: z.string().openapi({ example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' }),
   name: z.string().openapi({ example: 'שאלות מהחיים א' }),
+  orderIndex: z.number().openapi({ example: 1 }),
+  coverUrl: z.string().nullable().openapi({ example: 'https://res.cloudinary.com/dasrirtzp/image/upload/stories-app/books-images/1_cover.png' }),
 }).openapi('Book');
 
 export const MasechetSchema = z.object({

@@ -139,21 +139,21 @@ export async function searchStories(params: SearchStoriesInput) {
 }
 
 export async function getFeaturedFullStories(count: number) {
-  // First, try to fill with stories that have a video
-  const withVideoRows = await prisma.$queryRaw<{ id: string }[]>(
-    Prisma.sql`SELECT id FROM stories WHERE "videoUrl" IS NOT NULL ORDER BY RANDOM() LIMIT ${count}`
+  // First, try to fill with stories that have an image
+  const withImageRows = await prisma.$queryRaw<{ id: string }[]>(
+    Prisma.sql`SELECT id FROM stories WHERE "imageUrl" IS NOT NULL ORDER BY RANDOM() LIMIT ${count}`
   );
-  const withVideoIds = withVideoRows.map((r) => r.id);
+  const withImageIds = withImageRows.map((r) => r.id);
 
-  let ids = withVideoIds;
+  let ids = withImageIds;
 
-  // Fill remaining slots with stories without a video
-  if (withVideoIds.length < count) {
-    const remaining = count - withVideoIds.length;
-    const withoutVideoRows = await prisma.$queryRaw<{ id: string }[]>(
-      Prisma.sql`SELECT id FROM stories WHERE "videoUrl" IS NULL ORDER BY RANDOM() LIMIT ${remaining}`
+  // Fill remaining slots with stories without an image
+  if (withImageIds.length < count) {
+    const remaining = count - withImageIds.length;
+    const withoutImageRows = await prisma.$queryRaw<{ id: string }[]>(
+      Prisma.sql`SELECT id FROM stories WHERE "imageUrl" IS NULL ORDER BY RANDOM() LIMIT ${remaining}`
     );
-    ids = [...withVideoIds, ...withoutVideoRows.map((r) => r.id)];
+    ids = [...withImageIds, ...withoutImageRows.map((r) => r.id)];
   }
 
   if (ids.length === 0) return [];
@@ -166,6 +166,36 @@ export async function getFeaturedFullStories(count: number) {
   const order = new Map(ids.map((id, i) => [id, i]));
   stories.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
   return stories;
+}
+
+/**
+ * Returns the "story of the week": a single story that has a video.
+ *
+ * How it works:
+ * - Only stories with a videoUrl are eligible.
+ * - Eligible stories are ordered deterministically by `id` (ascending), so the
+ *   Nth story in that fixed order is always the same story on every call.
+ * - `weekNumber` is the number of full 7-day periods since the Unix epoch
+ *   (Date.now() / 7 days, floored). It increments by exactly 1 once every
+ *   7 days and is the same for every request during that week, so no
+ *   "current week's pick" needs to be stored in the database.
+ * - `offset = weekNumber % total` maps the current week to an index in the
+ *   ordered list of eligible stories, cycling back to the start once every
+ *   story has had its turn.
+ */
+export async function getWeeklyStory() {
+  const total = await prisma.story.count({ where: { videoUrl: { not: null } } });
+  if (total === 0) return null;
+
+  const weekNumber = Math.floor(Date.now() / (7 * 24 * 60 * 60 * 1000));
+  const offset = weekNumber % total;
+
+  return prisma.story.findFirst({
+    where: { videoUrl: { not: null } },
+    orderBy: { id: 'asc' },
+    skip: offset,
+    include: storyInclude,
+  });
 }
 
 export async function getStoryById(id: string) {

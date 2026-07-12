@@ -247,6 +247,27 @@ registry.registerPath({
   },
 });
 
+// ── GET /api/stories/weekly ─────────────────────────────────────────────────────
+
+registry.registerPath({
+  method: 'get',
+  path: '/api/stories/weekly',
+  tags: ['Stories'],
+  summary: 'Get the story of the week',
+  description: 'Returns a single full story that has a video. The pick is deterministic and rotates once every 7 days (no scheduling job needed); returns null if no story with a video exists.',
+  security: [{ ApiSecretAuth: [] }],
+  responses: {
+    200: {
+      description: 'The current story of the week, or null if no story with a video exists',
+      content: { 'application/json': { schema: StandardSuccessSchema(FullStorySchema.nullable()) } },
+    },
+    401: {
+      description: 'Missing or invalid x-api-secret header',
+      content: { 'application/json': { schema: StandardErrorSchema } },
+    },
+  },
+});
+
 // ── GET /api/stories/:id ──────────────────────────────────────────────────────
 
 registry.register('StoryStub', StoryStubSchema);

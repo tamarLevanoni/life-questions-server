@@ -27,6 +27,7 @@ import {
   ShuSimanSchema,
   TopicSchema,
 } from '../modules/stories/stories.validators';
+import { RecommendationSchema } from '../modules/recommendations/recommendations.validators';
 
 const registry = new OpenAPIRegistry();
 
@@ -416,6 +417,24 @@ registry.registerPath({
           schema: StandardSuccessSchema(z.object({ message: z.string() })),
         },
       },
+    },
+    401: { description: 'Unauthorized', content: { 'application/json': { schema: StandardErrorSchema } } },
+  },
+});
+
+// ── GET /api/recommendations ────────────────────────────────────────────────
+
+registry.registerPath({
+  method: 'get',
+  path: '/api/recommendations',
+  tags: ['Recommendations'],
+  summary: 'List book recommendations',
+  description: 'Returns recommended books/resources sourced from Cloudinary. Cached in-memory.',
+  security: [{ ApiSecretAuth: [] }],
+  responses: {
+    200: {
+      description: 'List of recommendations',
+      content: { 'application/json': { schema: StandardSuccessSchema(z.array(RecommendationSchema)) } },
     },
     401: { description: 'Unauthorized', content: { 'application/json': { schema: StandardErrorSchema } } },
   },

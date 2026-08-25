@@ -9,48 +9,101 @@ export async function searchStories(params: SearchStoriesInput) {
   const { q, topicIds, bookIds, shasRefs, shuRefs, concepts, page, limit } = params;
   const skip = (page - 1) * limit;
 
-  const where: Prisma.StoryWhereInput = {};
+  // Each filter group below is a distinct way a story can qualify: it should
+  // be returned if it matches the free-text query, OR the book+topic
+  // selection, OR a shas ref, OR a shu ref, OR a concept tag — not require
+  // all of them at once. Groups present are combined with OR; a single
+  // active group behaves exactly as a plain AND-filter would.
+  const structuralGroups: Prisma.StoryWhereInput[] = [];
 
-  if (topicIds && topicIds.length > 0) where.topicId = { in: topicIds };
-  if (bookIds && bookIds.length > 0) where.bookId = { in: bookIds };
+  // Book+topic filter — topicId and bookId, when both given, narrow together
+  // (a topic within a specific book) rather than acting as separate OR arms.
+  if ((topicIds && topicIds.length > 0) || (bookIds && bookIds.length > 0)) {
+    const bookTopicCondition: Prisma.StoryWhereInput = {};
+    if (topicIds && topicIds.length > 0) bookTopicCondition.topicId = { in: topicIds };
+    if (bookIds && bookIds.length > 0) bookTopicCondition.bookId = { in: bookIds };
+    structuralGroups.push(bookTopicCondition);
+  }
 
   // Shas filters — story must have at least one ref matching any of the filter objects
   if (shasRefs && shasRefs.length > 0) {
-    where.shasRefs = {
-      some: {
-        OR: shasRefs.map((ref) => ({
-          shasPage: {
-            masechetId: ref.masechetId,
-            ...(ref.daf !== undefined ? { daf: ref.daf } : {}),
-          },
-        })),
+    structuralGroups.push({
+      shasRefs: {
+        some: {
+          OR: shasRefs.map((ref) => ({
+            shasPage: {
+              masechetId: ref.masechetId,
+              ...(ref.daf !== undefined ? { daf: ref.daf } : {}),
+            },
+          })),
+        },
       },
-    };
+    });
   }
 
   // Shu filters — story must have at least one ref matching any of the filter objects
   if (shuRefs && shuRefs.length > 0) {
-    where.shuRefs = {
-      some: {
-        OR: shuRefs.map((ref) => ({
-          ...(ref.simanId ? { shuSimanId: ref.simanId } : { shuSiman: { sectionId: ref.shuSectionId } }),
-          ...(ref.seif !== undefined ? { seif: ref.seif } : {}),
-        })),
+    structuralGroups.push({
+      shuRefs: {
+        some: {
+          OR: shuRefs.map((ref) => ({
+            ...(ref.simanId ? { shuSimanId: ref.simanId } : { shuSiman: { sectionId: ref.shuSectionId } }),
+            ...(ref.seif !== undefined ? { seif: ref.seif } : {}),
+          })),
+        },
       },
-    };
+    });
   }
 
   // Concepts filter — story must match at least one concept from the list
   if (concepts && concepts.length > 0) {
-    where.OR = concepts.flatMap((c) => [
-      { conceptsAi: { has: c } },
-      { conceptsFromIndex: { has: c } },
-    ]);
+    structuralGroups.push({
+      OR: concepts.flatMap((c) => [
+        { conceptsAi: { has: c } },
+        { conceptsFromIndex: { has: c } },
+      ]),
+    });
   }
 
-  // Vector search path
+  // No filters at all — plain paginated listing, no per-group bookkeeping needed.
+  if (structuralGroups.length === 0 && !q) {
+    const [stories, total] = await Promise.all([
+      prisma.story.findMany({
+        where: {},
+        omit: storyCardOmit,
+        include: storyCardInclude,
+        skip,
+        take: limit,
+        orderBy: [{ bookId: 'asc' }, { storyOrder: 'asc' }],
+      }),
+      prisma.story.count({}),
+    ]);
+    return { stories, total, page, limit };
+  }
+
+  // Resolve each active filter group to its own id set, independently of the
+  // others, so a story's rank can reflect how many distinct groups it
+  // satisfies (matched-in-more-groups sorts first) rather than just whether
+  // it satisfies at least one.
+  const groupIdSets: Set<string>[] = await Promise.all(
+    structuralGroups.map(async (condition) => {
+      const rows = await prisma.story.findMany({ where: condition, select: { id: true } });
+      return new Set(rows.map((r) => r.id));
+    })
+  );
+
+  // Vector rank (lower = more relevant) for the text-query group, when a
+  // ranked search succeeded — used only as a tiebreaker among stories with
+  // an equal match count.
+  let queryRank: Map<string, number> | null = null;
+
+  // Vector-only matches (semantically close, but no literal keyword hit) are
+  // included in the results but don't count as a "matched parameter" — only
+  // an exact keyword/ILIKE hit is confident enough to add to matchCount.
+  const vectorOnlyIds: string[] = [];
+
   if (q) {
-    let candidateIds: string[] | null = null;
+    let embeddingSucceeded = false;
 
     try {
       const vector = await embedText(q);
@@ -83,57 +136,81 @@ export async function searchStories(params: SearchStoriesInput) {
         `
       );
 
-      // 3. Merge: keyword hits always pass; threshold filters only pure-semantic results
+      // 3. Rank in two tiers: exact keyword matches always outrank pure-vector
+      // matches, regardless of vector distance — a story that literally
+      // contains the search term is a more confident match than one that's
+      // merely semantically nearby. Within each tier, closer vector distance
+      // (when known) still breaks ties.
       const keywordSet = new Set(keywordRows.map((r) => r.id));
+      const distanceById = new Map(semanticRows.map((r) => [r.id, r.distance]));
       const SEMANTIC_THRESHOLD = 0.6;
-      const scored = semanticRows
-        .filter((r) => keywordSet.has(r.id) || r.distance <= SEMANTIC_THRESHOLD)
-        .map((r) => ({
-          id: r.id,
-          score: r.distance - (keywordSet.has(r.id) ? 0.25 : 0),
-        }));
 
-      // 4. Add pure keyword matches not in semantic results
-      const semanticIds = new Set(semanticRows.map((r) => r.id));
-      for (const r of keywordRows) {
-        if (!semanticIds.has(r.id)) scored.push({ id: r.id, score: 0.1 });
-      }
+      const keywordTier = keywordRows
+        .map((r) => ({ id: r.id, distance: distanceById.get(r.id) ?? Infinity }))
+        .sort((a, b) => a.distance - b.distance)
+        .map((r) => r.id);
 
-      scored.sort((a, b) => a.score - b.score);
-      candidateIds = scored.map((r) => r.id);
+      const vectorOnlyTier = semanticRows
+        .filter((r) => !keywordSet.has(r.id) && r.distance <= SEMANTIC_THRESHOLD)
+        .sort((a, b) => a.distance - b.distance)
+        .map((r) => r.id);
+
+      if (keywordTier.length > 0) groupIdSets.push(new Set(keywordTier));
+      vectorOnlyIds.push(...vectorOnlyTier);
+      queryRank = new Map([...keywordTier, ...vectorOnlyTier].map((id, i) => [id, i]));
+      embeddingSucceeded = true;
     } catch {
       // Fallback to text search if embedding fails (e.g. no OPENAI_API_KEY in tests)
     }
 
-    if (candidateIds && candidateIds.length > 0) {
-      where.id = { in: candidateIds };
-
-      const [stories, total] = await Promise.all([
-        prisma.story.findMany({ where, omit: storyCardOmit, include: storyCardInclude, skip, take: limit }),
-        prisma.story.count({ where }),
-      ]);
-
-      // Re-sort by vector order
-      const idOrder = new Map(candidateIds.map((id, i) => [id, i]));
-      stories.sort((a, b) => (idOrder.get(a.id) ?? 999) - (idOrder.get(b.id) ?? 999));
-
-      return { stories, total, page, limit };
+    if (!embeddingSucceeded) {
+      // Text fallback — a literal ILIKE hit, so it counts as a group match same as keywords above.
+      const textCondition: Prisma.StoryWhereInput = {
+        OR: [
+          { title: { contains: q, mode: 'insensitive' } },
+          { storyBody: { contains: q, mode: 'insensitive' } },
+        ],
+      };
+      const rows = await prisma.story.findMany({ where: textCondition, select: { id: true } });
+      groupIdSets.push(new Set(rows.map((r) => r.id)));
     }
-
-    // Text fallback
-    const textCondition: Prisma.StoryWhereInput = {
-      OR: [
-        { title: { contains: q, mode: 'insensitive' } },
-        { storyBody: { contains: q, mode: 'insensitive' } },
-      ],
-    };
-    where.AND = [textCondition];
   }
 
-  const [stories, total] = await Promise.all([
-    prisma.story.findMany({ where, omit: storyCardOmit, include: storyCardInclude, skip, take: limit, orderBy: [{ bookId: 'asc' }, { storyOrder: 'asc' }] }),
-    prisma.story.count({ where }),
-  ]);
+  // Union of every group's ids is the full match set; each id's match count
+  // is how many of those groups it appears in. Vector-only ids are folded in
+  // afterward without incrementing the count, so they still surface as
+  // results but never outrank an actual parameter match.
+  const matchCount = new Map<string, number>();
+  for (const idSet of groupIdSets) {
+    for (const id of idSet) matchCount.set(id, (matchCount.get(id) ?? 0) + 1);
+  }
+  for (const id of vectorOnlyIds) {
+    if (!matchCount.has(id)) matchCount.set(id, 0);
+  }
+  const unionIds = Array.from(matchCount.keys());
+
+  if (unionIds.length === 0) return { stories: [], total: 0, page, limit };
+
+  const allMatched = await prisma.story.findMany({
+    where: { id: { in: unionIds } },
+    omit: storyCardOmit,
+    include: storyCardInclude,
+    orderBy: [{ bookId: 'asc' }, { storyOrder: 'asc' }],
+  });
+
+  // Sort by how many filter groups a story satisfies (more matches first),
+  // then by vector relevance among equally-matched stories, then fall back
+  // to the default bookId/storyOrder order already applied by the query above.
+  allMatched.sort((a, b) => {
+    const countDiff = (matchCount.get(b.id) ?? 0) - (matchCount.get(a.id) ?? 0);
+    if (countDiff !== 0) return countDiff;
+    const rankA = queryRank?.get(a.id) ?? Infinity;
+    const rankB = queryRank?.get(b.id) ?? Infinity;
+    return rankA - rankB;
+  });
+
+  const total = allMatched.length;
+  const stories = allMatched.slice(skip, skip + limit);
 
   return { stories, total, page, limit };
 }

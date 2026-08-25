@@ -294,6 +294,75 @@ describe('POST /api/stories/search', () => {
     expect(page3.body.data.stories).toHaveLength(5);
   });
 
+  it('combines filter groups with OR — a story matching any one group is returned', async () => {
+    const topic = await seedTopic();
+    const otherTopic = await seedTopic();
+    const masechet = await seedMasechet();
+    const page = await seedShasPage(masechet.id, 7, 'a');
+
+    // Matches only the book+topic group
+    const storyByTopic = await seedStory(topic.id);
+    // Matches only the shas group (different topic, no book/topic overlap)
+    const storyByShas = await seedStory(otherTopic.id);
+    await linkStoryToShas(storyByShas.id, page.id);
+    // Matches neither group
+    await seedStory(otherTopic.id);
+
+    const res = await search({
+      topicIds: [topic.id],
+      shasRefs: [{ masechetId: masechet.id }],
+    });
+
+    expect(res.status).toBe(200);
+    const ids = res.body.data.stories.map((s: { id: string }) => s.id);
+    expect(ids).toContain(storyByTopic.id);
+    expect(ids).toContain(storyByShas.id);
+    expect(res.body.data.stories).toHaveLength(2);
+  });
+
+  it('combines the text query with structural filters via OR', async () => {
+    const topic = await seedTopic();
+    const otherTopic = await seedTopic();
+
+    // Matches only the text query
+    const storyByText = await seedStory(topic.id, { title: 'מציאה', storyBody: 'מעשה מיוחד בשוק' });
+    // Matches only the topic filter
+    const storyByTopic = await seedStory(otherTopic.id, { title: 'לא קשור', storyBody: 'עניין אחר' });
+    // Matches neither
+    await seedStory(otherTopic.id, { title: 'ללא קשר', storyBody: 'סתם עוד דבר' });
+
+    const res = await search({ q: 'מציאה', topicIds: [otherTopic.id] });
+
+    expect(res.status).toBe(200);
+    const ids = res.body.data.stories.map((s: { id: string }) => s.id);
+    expect(ids).toContain(storyByText.id);
+    expect(ids).toContain(storyByTopic.id);
+  });
+
+  it('ranks stories matching more filter groups ahead of stories matching fewer', async () => {
+    const topic = await seedTopic();
+    const otherTopic = await seedTopic();
+    const masechet = await seedMasechet();
+    const page = await seedShasPage(masechet.id, 7, 'a');
+
+    // Matches both the topic group and the shas group
+    const storyBoth = await seedStory(topic.id);
+    await linkStoryToShas(storyBoth.id, page.id);
+    // Matches only the topic group
+    const storyTopicOnly = await seedStory(topic.id);
+    // Matches neither
+    await seedStory(otherTopic.id);
+
+    const res = await search({
+      topicIds: [topic.id],
+      shasRefs: [{ masechetId: masechet.id }],
+    });
+
+    expect(res.status).toBe(200);
+    const ids = res.body.data.stories.map((s: { id: string }) => s.id);
+    expect(ids).toEqual([storyBoth.id, storyTopicOnly.id]);
+  });
+
   it('returns 422 when body contains invalid UUIDs', async () => {
     const res = await search({ shasRefs: [{ masechetId: 'not-a-uuid' }] });
 

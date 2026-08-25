@@ -204,7 +204,7 @@ registry.registerPath({
   path: '/api/stories/search',
   tags: ['Stories'],
   summary: 'Search stories',
-  description: 'Hybrid search: vector similarity (pgvector, cosine) when embeddings exist, falls back to ILIKE. Supports multi-value filtering by bookIds, topicIds, masechetIds, shuSectionIds, simanIds, and concepts arrays. Paginated.',
+  description: 'Hybrid search: vector similarity (pgvector, cosine) when embeddings exist, falls back to ILIKE. Supports multi-value filtering by bookIds, topicIds, masechetIds, shuSectionIds, simanIds, and concepts arrays. A story is returned if it matches ANY active filter group (q, book+topic, shasRefs, shuRefs, concepts) — groups are combined with OR, not AND. Paginated.',
   security: [{ ApiSecretAuth: [] }],
   request: {
     body: {

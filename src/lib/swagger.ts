@@ -14,6 +14,7 @@ import {
   ShasRefFilterSchema,
   ShuRefFilterSchema,
   StoryIdParamSchema,
+  StoryReaderHeadersSchema,
   StoryResponseSchema,
   FullStorySchema,
   StoryCardSchema,
@@ -204,7 +205,7 @@ registry.registerPath({
   path: '/api/stories/search',
   tags: ['Stories'],
   summary: 'Search stories',
-  description: 'Hybrid search: vector similarity (pgvector, cosine) when embeddings exist, falls back to ILIKE. Supports multi-value filtering by bookIds, topicIds, masechetIds, shuSectionIds, simanIds, and concepts arrays. A story is returned if it matches ANY active filter group (q, book+topic, shasRefs, shuRefs, concepts) — groups are combined with OR, not AND. Paginated.',
+  description: 'With a versioned search index active, matches story titles, topics, source references, expansion passages, and semantic representations of the scenario and principle. Lexical retrieval continues during embedding outages. Text matches are ranked before facet-only matches. A story can qualify through any active group: q, book+topic, shasRefs, shuRefs, or concepts. The response contains paginated story cards.',
   security: [{ ApiSecretAuth: [] }],
   request: {
     body: {
@@ -234,7 +235,7 @@ registry.registerPath({
   path: '/api/stories/featured',
   tags: ['Stories'],
   summary: 'Get featured full stories',
-  description: 'Returns 3 random stories with all fields and references (Shas, Shu, topic, central siman). Intended for homepage / showcase use.',
+  description: 'Returns 3 random stories and their references for homepage previews. hasExpansion indicates availability and expansion is null.',
   security: [{ ApiSecretAuth: [] }],
   responses: {
     200: {
@@ -255,7 +256,7 @@ registry.registerPath({
   path: '/api/stories/weekly',
   tags: ['Stories'],
   summary: 'Get the story of the week',
-  description: 'Returns a single full story that has a video. The pick is deterministic and rotates once every 7 days (no scheduling job needed); returns null if no story with a video exists.',
+  description: 'Returns a weekly story preview with a video, or null if no story has a video. The pick rotates every seven days. hasExpansion indicates availability and expansion is null.',
   security: [{ ApiSecretAuth: [] }],
   responses: {
     200: {
@@ -279,10 +280,11 @@ registry.registerPath({
   path: '/api/stories/{id}',
   tags: ['Stories'],
   summary: 'Get story by ID',
-  description: 'Returns full story including Shas and Shulchan Aruch references. The expansion field is currently always returned.',
+  description: 'Returns the story and its references. The BFF can send the ID of a registered reader to include expansion text. Other callers receive null expansion and can use hasExpansion to display availability.',
   security: [{ ApiSecretAuth: [] }],
   request: {
     params: z.object({ id: StoryIdParamSchema }),
+    headers: StoryReaderHeadersSchema,
   },
   responses: {
     200: {
@@ -290,7 +292,7 @@ registry.registerPath({
       content: { 'application/json': { schema: StandardSuccessSchema(StoryResponseSchema) } },
     },
     400: {
-      description: 'Invalid UUID format for story ID',
+      description: 'Invalid UUID format for story or reader ID',
       content: { 'application/json': { schema: StandardErrorSchema } },
     },
     401: {

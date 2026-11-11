@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { sendSuccess, sendError } from '../../utils/response';
-import { SearchStoriesSchema, StoryIdParamSchema } from './stories.validators';
+import { SearchStoriesSchema, StoryIdParamSchema, StoryReaderHeadersSchema } from './stories.validators';
 import * as StoriesService from './stories.service';
 
 export async function searchStories(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -42,7 +42,13 @@ export async function getStoryById(req: Request, res: Response, next: NextFuncti
       sendError(res, 'Invalid story ID format: must be a UUID', 400);
       return;
     }
-    const story = await StoriesService.getStoryById(parsed.data);
+    const viewer = StoryReaderHeadersSchema.safeParse(req.headers);
+    if (!viewer.success) {
+      sendError(res, 'Invalid UUID format for story reader ID', 400);
+      return;
+    }
+    res.set('Cache-Control', 'private, no-store');
+    const story = await StoriesService.getStoryById(parsed.data, viewer.data['x-story-reader-id']);
     sendSuccess(res, story);
   } catch (err) {
     next(err);

@@ -88,7 +88,8 @@ export const StoryResponseSchema = z.object({
   legalQuestion: z.string().openapi({ example: 'האם חייב לשלם?' }),
   legalQuestionSource: z.string().openapi({ example: 'בבא קמא ז.' }),
   shortAnswer: z.string().openapi({ example: 'חייב בנזק שלם' }),
-  expansion: z.string().nullable().openapi({ example: 'הרחבה מפורטת...' }),
+  expansion: z.string().nullable().openapi({ example: 'הרחבה מפורטת...', description: 'Expansion text available to a registered reader.' }),
+  hasExpansion: z.boolean().openapi({ example: true, description: 'Whether the story has expansion content.' }),
   conceptsAi: z.array(z.string()).openapi({ example: ['גנבה', 'נזיקין'] }),
   conceptsFromIndex: z.array(z.string()).openapi({ example: ['גנבה'] }),
   sourceReferencesText: z.string().nullable().openapi({ example: 'בבא קמא ז. - ח.' }),
@@ -154,5 +155,11 @@ export const SearchStoriesSchema = z
 export const StoryIdParamSchema = z
   .uuid({ error: 'id must be a valid UUID' })
   .openapi({ example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' });
+
+export const StoryReaderHeadersSchema = z.object({
+  'x-story-reader-id': z.uuid().optional().openapi({
+    description: 'Registered user ID derived by the BFF from its verified session.',
+  }),
+});
 
 export type SearchStoriesInput = z.infer<typeof SearchStoriesSchema>;

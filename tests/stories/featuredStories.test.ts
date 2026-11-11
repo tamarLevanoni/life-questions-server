@@ -29,7 +29,8 @@ describe('GET /api/stories/featured', () => {
       expect(story.title).toBeDefined();
       expect(story.storyBody).toBeDefined();
       expect(story.shortAnswer).toBeDefined();
-      expect(story.expansion).toBeDefined();
+      expect(story.expansion).toBeNull();
+      expect(story.hasExpansion).toBe(true);
       expect(story.topic).toBeDefined();
       expect(story.topic.name).toBe('נזיקין');
       expect(Array.isArray(story.shasRefs)).toBe(true);

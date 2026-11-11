@@ -10,6 +10,8 @@
     "postinstall": "prisma generate",
     "test": "jest --runInBand --forceExit",
     "test:coverage": "jest --runInBand --forceExit --coverage",
+    "search:index": "bun scripts/search-index.ts",
+    "search:eval": "bun scripts/search-eval.ts",
     "db:push": "bunx prisma db push",
     "db:studio": "bunx prisma studio",
     "db:generate": "bunx prisma generate",

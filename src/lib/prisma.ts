@@ -3,7 +3,6 @@ import { PrismaClient } from '@prisma/client'
 import { PrismaNeon } from '@prisma/adapter-neon'
 
 const isTest = process.env.NODE_ENV === 'test'
-console.log("🚀 ~ isTest:", isTest)
 const connectionString = isTest
   ? process.env.DATABASE_URL_TESTS
   : process.env.DATABASE_URL

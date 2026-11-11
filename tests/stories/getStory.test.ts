@@ -1,6 +1,7 @@
 import request from 'supertest';
 import { v4 as uuidv4 } from 'uuid';
 import { app } from '../../src/app';
+import { prisma } from '../../src/lib/prisma';
 import {
   cleanDb,
   seedTopic,
@@ -17,6 +18,19 @@ const SECRET = process.env.API_SECRET ?? 'test-secret';
 
 const authed = (url: string) =>
   request(app).get(url).set('x-api-secret', SECRET);
+
+async function createReader() {
+  return prisma.user.create({
+    data: {
+      googleId: `google-${uuidv4()}`,
+      email: `${uuidv4()}@test.com`,
+      firstName: 'Test',
+      lastName: 'Reader',
+      phone: '0501234567',
+    },
+    select: { id: true },
+  });
+}
 
 beforeEach(async () => {
   await cleanDb();
@@ -47,7 +61,8 @@ describe('GET /api/stories/:id', () => {
     const data = res.body.data;
     expect(data.id).toBe(story.id);
     expect(data.title).toBe('מעשה בגנב שנכנס לחצר');
-    expect(data.expansion).toBe('הרחבה מפורטת על הדין');
+    expect(data.expansion).toBeNull();
+    expect(data.hasExpansion).toBe(true);
     expect(data.topic.name).toBe('נזיקין');
 
     // Shas reference is populated
@@ -67,14 +82,35 @@ describe('GET /api/stories/:id', () => {
     expect(data.neighbors.next).toBeNull();
   });
 
-  it('returns expansion field when present', async () => {
+  it('returns the expansion for a registered reader', async () => {
     const topic = await seedTopic();
     const story = await seedStory(topic.id, { expansion: 'הרחבה זמינה' });
+    const reader = await createReader();
 
-    const res = await authed(`/api/stories/${story.id}`);
+    try {
+      const res = await authed(`/api/stories/${story.id}`).set('x-story-reader-id', reader.id);
+      expect(res.status).toBe(200);
+      expect(res.headers['cache-control']).toBe('private, no-store');
+      expect(res.body.data.hasExpansion).toBe(true);
+      expect(res.body.data.expansion).toBe('הרחבה זמינה');
+    } finally {
+      await prisma.user.delete({ where: { id: reader.id } });
+    }
+  });
 
+  it('redacts expansion and derived search text for an unknown reader', async () => {
+    const topic = await seedTopic();
+    const story = await seedStory(topic.id, {
+      expansion: 'הרחבה זמינה',
+      searchText: 'הרחבה זמינה',
+      summaryAi: 'הרחבה זמינה',
+    });
+    const res = await authed(`/api/stories/${story.id}`).set('x-story-reader-id', uuidv4());
     expect(res.status).toBe(200);
-    expect(res.body.data.expansion).toBe('הרחבה זמינה');
+    expect(res.body.data.hasExpansion).toBe(true);
+    expect(res.body.data.expansion).toBeNull();
+    expect(res.body.data).not.toHaveProperty('searchText');
+    expect(res.body.data).not.toHaveProperty('summaryAi');
   });
 
   it('returns null expansion when not set', async () => {
@@ -85,6 +121,7 @@ describe('GET /api/stories/:id', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.data.expansion).toBeNull();
+    expect(res.body.data.hasExpansion).toBe(false);
   });
 
   it('returns 404 when story does not exist', async () => {
@@ -105,7 +142,7 @@ describe('GET /api/stories/:id', () => {
     const topic = await seedTopic();
     const story = await seedStory(topic.id);
 
-    const res = await request(app).get(`/api/stories/${story.id}`);
+    const res = await request(app).get(`/api/stories/${story.id}`).set('x-story-reader-id', uuidv4());
 
     expect(res.status).toBe(401);
     expect(res.body.success).toBe(false);

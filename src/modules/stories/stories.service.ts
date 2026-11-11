@@ -1,11 +1,35 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { embedText } from '../../lib/openai';
+import { getSearchEmbeddingModel, getSearchIndexVersion } from '../../lib/search-ai';
 import { NotFoundError } from '../../types';
 import { SearchStoriesInput } from './stories.validators';
-import { storyInclude, storyCardInclude, storyCardOmit } from './stories.queries';
+import { storyInclude, storyCardInclude, storyCardOmit, storyDetailOmit } from './stories.queries';
+import { searchVersionedStories, type VersionedSearchOptions } from './search-retrieval';
 
 export async function searchStories(params: SearchStoriesInput) {
+  const indexVersion = getSearchIndexVersion();
+  return searchStoriesWithFilters(params, indexVersion && params.q ? {
+    indexVersion,
+    model: getSearchEmbeddingModel(),
+    rerank: process.env.SEARCH_RERANK_ENABLED === 'true',
+    rewrite: process.env.SEARCH_REWRITE_ENABLED === 'true',
+    rerankMinScore: configuredScore(process.env.SEARCH_RERANK_MIN_SCORE, 1),
+    maxVectorDistance: configuredScore(process.env.SEARCH_EMBEDDING_MAX_DISTANCE, 2),
+  } : undefined);
+}
+
+function configuredScore(value: string | undefined, maximum: number) {
+  if (!value?.trim()) return undefined;
+  const score = Number(value);
+  return Number.isFinite(score) && score >= 0 && score <= maximum ? score : undefined;
+}
+
+export async function searchLegacyStories(params: SearchStoriesInput) {
+  return searchStoriesWithFilters(params);
+}
+
+async function searchStoriesWithFilters(params: SearchStoriesInput, index?: VersionedSearchOptions) {
   const { q, topicIds, bookIds, shasRefs, shuRefs, concepts, page, limit } = params;
   const skip = (page - 1) * limit;
 
@@ -74,7 +98,7 @@ export async function searchStories(params: SearchStoriesInput) {
         include: storyCardInclude,
         skip,
         take: limit,
-        orderBy: [{ bookId: 'asc' }, { storyOrder: 'asc' }],
+        orderBy: [{ bookId: 'asc' }, { storyOrder: 'asc' }, { id: 'asc' }],
       }),
       prisma.story.count({}),
     ]);
@@ -85,12 +109,13 @@ export async function searchStories(params: SearchStoriesInput) {
   // others, so a story's rank can reflect how many distinct groups it
   // satisfies (matched-in-more-groups sorts first) rather than just whether
   // it satisfies at least one.
-  const groupIdSets: Set<string>[] = await Promise.all(
-    structuralGroups.map(async (condition) => {
+  const [groupIdSets, indexedResults] = await Promise.all([
+    Promise.all(structuralGroups.map(async (condition) => {
       const rows = await prisma.story.findMany({ where: condition, select: { id: true } });
       return new Set(rows.map((r) => r.id));
-    })
-  );
+    })),
+    index && q ? searchVersionedStories(q, index) : undefined,
+  ]);
 
   // Vector rank (lower = more relevant) for the text-query group, when a
   // ranked search succeeded — used only as a tiebreaker among stories with
@@ -102,7 +127,10 @@ export async function searchStories(params: SearchStoriesInput) {
   // an exact keyword/ILIKE hit is confident enough to add to matchCount.
   const vectorOnlyIds: string[] = [];
 
-  if (q) {
+  if (indexedResults) {
+    groupIdSets.push(new Set(indexedResults.rankedIds));
+    queryRank = new Map(indexedResults.rankedIds.map((id, i) => [id, i]));
+  } else if (q) {
     let embeddingSucceeded = false;
 
     try {
@@ -195,18 +223,18 @@ export async function searchStories(params: SearchStoriesInput) {
     where: { id: { in: unionIds } },
     omit: storyCardOmit,
     include: storyCardInclude,
-    orderBy: [{ bookId: 'asc' }, { storyOrder: 'asc' }],
+    orderBy: [{ bookId: 'asc' }, { storyOrder: 'asc' }, { id: 'asc' }],
   });
 
-  // Sort by how many filter groups a story satisfies (more matches first),
-  // then by vector relevance among equally-matched stories, then fall back
-  // to the default bookId/storyOrder order already applied by the query above.
+  // The versioned index prioritizes free-text relevance. Legacy and facet-only
+  // searches retain the structural-group count, followed by catalog order.
   allMatched.sort((a, b) => {
-    const countDiff = (matchCount.get(b.id) ?? 0) - (matchCount.get(a.id) ?? 0);
-    if (countDiff !== 0) return countDiff;
     const rankA = queryRank?.get(a.id) ?? Infinity;
     const rankB = queryRank?.get(b.id) ?? Infinity;
-    return rankA - rankB;
+    if (indexedResults && rankA !== rankB) return rankA - rankB;
+    const countDiff = (matchCount.get(b.id) ?? 0) - (matchCount.get(a.id) ?? 0);
+    if (countDiff !== 0) return countDiff;
+    return rankA === rankB ? 0 : rankA - rankB;
   });
 
   const total = allMatched.length;
@@ -238,11 +266,12 @@ export async function getFeaturedFullStories(count: number) {
   const stories = await prisma.story.findMany({
     where: { id: { in: ids } },
     include: storyInclude,
+    omit: storyDetailOmit,
   });
 
   const order = new Map(ids.map((id, i) => [id, i]));
   stories.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
-  return stories;
+  return stories.map((story) => withExpansionAccess(story, false));
 }
 
 /**
@@ -267,23 +296,34 @@ export async function getWeeklyStory() {
   const weekNumber = Math.floor(Date.now() / (7 * 24 * 60 * 60 * 1000));
   const offset = weekNumber % total;
 
-  return prisma.story.findFirst({
+  const story = await prisma.story.findFirst({
     where: { videoUrl: { not: null } },
     orderBy: { id: 'asc' },
     skip: offset,
     include: storyInclude,
+    omit: storyDetailOmit,
   });
+  return story && withExpansionAccess(story, false);
 }
 
-export async function getStoryById(id: string) {
+function withExpansionAccess<T extends { expansion: string | null }>(story: T, canReadExpansion: boolean) {
+  return {
+    ...story,
+    expansion: canReadExpansion ? story.expansion : null,
+    hasExpansion: Boolean(story.expansion?.trim()),
+  };
+}
+
+export async function getStoryById(id: string, readerId?: string) {
   const story = await prisma.story.findUnique({
     where: { id },
     include: storyInclude,
+    omit: storyDetailOmit,
   });
 
   if (!story) throw new NotFoundError('Story');
 
-  const [prev, next] = await Promise.all([
+  const [prev, next, reader] = await Promise.all([
     prisma.story.findFirst({
       where: { bookId: story.bookId, storyOrder: { lt: story.storyOrder } },
       orderBy: { storyOrder: 'desc' },
@@ -294,7 +334,10 @@ export async function getStoryById(id: string) {
       orderBy: { storyOrder: 'asc' },
       select: { id: true, title: true },
     }),
+    readerId
+      ? prisma.user.findUnique({ where: { id: readerId }, select: { googleId: true } })
+      : null,
   ]);
 
-  return { ...story, neighbors: { prev: prev ?? null, next: next ?? null } };
+  return { ...withExpansionAccess(story, Boolean(reader?.googleId)), neighbors: { prev, next } };
 }

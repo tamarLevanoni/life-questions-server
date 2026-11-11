@@ -140,9 +140,40 @@ model Story {
   shuRefs         StoryToShu[]
   shasRefs        StoryToShas[]
   centralShuSiman ShuSiman?  @relation("StoryCentralSiman", fields: [centralShuSimanId], references: [id])
+  searchDocuments StorySearchDocument[]
 
   @@unique([bookId, storyOrder])
   @@map("stories")
+}
+
+model StorySearchIndexVersion {
+  indexVersion   String @id @map("index_version")
+  embeddingModel String @map("embedding_model")
+  layout         String
+  recipeVersion  Int    @map("recipe_version")
+
+  documents StorySearchDocument[]
+
+  @@map("story_search_index_versions")
+}
+
+model StorySearchDocument {
+  storyId        String                       @map("story_id")
+  indexVersion   String                       @map("index_version")
+  kind           String
+  part           Int
+  content        String
+  contentHash    String                       @map("content_hash")
+  embeddingModel String?                      @map("embedding_model")
+  embedding      Unsupported("vector(1536)")?
+  searchVector   Unsupported("tsvector")?     @map("search_vector")
+
+  story   Story                   @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  version StorySearchIndexVersion @relation(fields: [indexVersion], references: [indexVersion], onDelete: Cascade)
+
+  @@id([storyId, indexVersion, kind, part])
+  @@index([indexVersion, kind], map: "story_search_documents_version_kind_idx")
+  @@map("story_search_documents")
 }
 
 model StoryToShu {

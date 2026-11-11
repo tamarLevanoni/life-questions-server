@@ -52,3 +52,9 @@ export const storyCardOmit = {
   createdAt: true,
   updatedAt: true,
 } satisfies Prisma.StoryOmit;
+
+export const storyDetailOmit = {
+  searchText: true,
+  embeddingModel: true,
+  summaryAi: true,
+} satisfies Prisma.StoryOmit;

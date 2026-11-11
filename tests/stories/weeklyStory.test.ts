@@ -14,7 +14,11 @@ describe('GET /api/stories/weekly', () => {
   it('returns a story that has a video', async () => {
     const topic = await seedTopic({ name: 'נזיקין' });
     await seedStory(topic.id, { title: 'ללא וידאו' });
-    const withVideo = await seedStory(topic.id, { title: 'עם וידאו', videoUrl: 'https://example.com/video.mp4' });
+    const withVideo = await seedStory(topic.id, {
+      title: 'עם וידאו',
+      videoUrl: 'https://example.com/video.mp4',
+      expansion: 'הרחבה זמינה',
+    });
 
     const res = await authed('/api/stories/weekly');
 
@@ -22,6 +26,8 @@ describe('GET /api/stories/weekly', () => {
     expect(res.body.success).toBe(true);
     expect(res.body.data.id).toBe(withVideo.id);
     expect(res.body.data.videoUrl).toBe('https://example.com/video.mp4');
+    expect(res.body.data.hasExpansion).toBe(true);
+    expect(res.body.data.expansion).toBeNull();
     expect(res.body.data.topic).toBeDefined();
     expect(res.body.data.topic.name).toBe('נזיקין');
     expect(Array.isArray(res.body.data.shasRefs)).toBe(true);

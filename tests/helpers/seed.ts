@@ -1,4 +1,4 @@
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'node:crypto';
 import type { Prisma } from '@prisma/client';
 import { prisma } from '../../src/lib/prisma';
 
@@ -14,7 +14,7 @@ export async function seedBook(
 ) {
   return prisma.book.create({
     data: {
-      name: name ?? `book-${uuidv4()}`,
+      name: name ?? `book-${randomUUID()}`,
       orderIndex: overrides.orderIndex ?? 1,
       coverUrl: overrides.coverUrl,
     },
@@ -26,7 +26,7 @@ export async function seedTopic(overrides: Partial<{ bookId: string; name: strin
   return prisma.topic.create({
     data: {
       bookId,
-      name: overrides.name ?? `topic-${uuidv4()}`,
+      name: overrides.name ?? `topic-${randomUUID()}`,
       orderIndex: overrides.orderIndex ?? 1,
     },
   });
@@ -38,8 +38,8 @@ export async function seedStory(topicId: string, overrides: Partial<Prisma.Story
     data: {
       storyOrder: Math.floor(Math.random() * 100000),
       topicId,
-      title: `test-title-${uuidv4()}`,
-      storyBody: `test-body-${uuidv4()}`,
+      title: `test-title-${randomUUID()}`,
+      storyBody: `test-body-${randomUUID()}`,
       legalQuestion: 'האם חייב?',
       legalQuestionSource: 'בבא קמא ז.',
       shortAnswer: 'חייב',
@@ -52,7 +52,7 @@ export async function seedStory(topicId: string, overrides: Partial<Prisma.Story
 export async function seedMasechet(overrides: Partial<{ name: string; orderIndex: number }> = {}) {
   return prisma.masechet.create({
     data: {
-      name: overrides.name ?? `masechet-${uuidv4()}`,
+      name: overrides.name ?? `masechet-${randomUUID()}`,
       orderIndex: overrides.orderIndex ?? 1,
     },
   });
@@ -63,7 +63,7 @@ export async function seedShasPage(masechetId: string, daf = 5, amud = 'a') {
 }
 
 export async function seedShuSection(name?: string) {
-  return prisma.shuSection.create({ data: { name: name ?? `section-${uuidv4()}` } });
+  return prisma.shuSection.create({ data: { name: name ?? `section-${randomUUID()}` } });
 }
 
 export async function seedShuSiman(sectionId: string, siman = 1, title?: string) {

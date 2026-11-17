@@ -2,66 +2,58 @@ import request from 'supertest';
 import { app } from '../../src/app';
 import { prisma } from '../../src/lib/prisma';
 import * as searchAi from '../../src/lib/search-ai';
+import contract from '../../src/modules/stories/search-index-contract.json';
 import { cleanDb, linkStoryToShas, seedMasechet, seedShasPage, seedStory, seedTopic } from '../helpers/seed';
 
 const embed = jest.spyOn(searchAi, 'embedSearchInputs');
-const rerank = jest.spyOn(searchAi, 'rerankSearch');
+const rewrite = jest.spyOn(searchAi, 'rewriteSearchQuery');
 const secret = process.env.API_SECRET ?? 'test-secret';
-const indexVersion = 'search-tests-active';
 const shadowVersion = 'search-tests-shadow';
-const originalEnv = process.env;
 
+// שולח חיפוש עבור חשבון הבדיקה דרך אותו נתיב שה־BFF מפעיל.
 const search = (body: Record<string, unknown>) => request(app)
   .post('/api/stories/search')
   .set('x-api-secret', secret)
+  .set('x-search-account', 'a'.repeat(64))
   .send(body);
 
+/** מייצר וקטור עם רכיב פעיל אחד כדי שמרחקי הבדיקה יהיו צפויים. */
 function vectorAt(coordinate: number): number[] {
-  return Array.from({ length: 1536 }, (_, i) => i === coordinate ? 1 : 0);
+  return Array.from({ length: contract.embeddingDimensions }, (_, i) => i === coordinate ? 1 : 0);
 }
 
+/** מכניס מסמך בדיקה לגרסת האינדקס הרצויה, עם וקטור או עם טקסט בלבד. */
 async function addDocument(
   storyId: string, kind: string, content: string,
   options: { version?: string; vector?: number[]; model?: string; part?: number } = {},
 ) {
   const vector = options.vector ? `[${options.vector.join(',')}]` : null;
-  const model = vector ? options.model ?? 'text-embedding-3-small' : null;
+  const model = vector ? options.model ?? contract.embeddingModel : null;
   await prisma.$executeRaw`
     INSERT INTO story_search_documents (story_id, index_version, kind, part, content, content_hash, embedding_model, embedding)
-    VALUES (${storyId}, ${options.version ?? indexVersion}, ${kind}, ${options.part ?? 0}, ${content}, 'hash', ${model}, ${vector}::vector)
+    VALUES (${storyId}, ${options.version ?? contract.indexId}, ${kind}, ${options.part ?? 0}, ${content}, 'hash', ${model}, ${vector}::vector)
   `;
 }
 
 beforeEach(async () => {
   await cleanDb();
-  process.env = {
-    ...originalEnv,
-    SEARCH_INDEX_VERSION: indexVersion,
-    SEARCH_EMBEDDING_MODEL: 'text-embedding-3-small',
-    SEARCH_RERANK_ENABLED: 'false',
-    SEARCH_REWRITE_ENABLED: 'false',
-  };
-  delete process.env.SEARCH_EMBEDDING_MAX_DISTANCE;
-  delete process.env.SEARCH_RERANK_MIN_SCORE;
   embed.mockReset().mockRejectedValue(new Error('Provider unavailable'));
-  rerank.mockReset();
+  rewrite.mockReset().mockResolvedValue(null);
   await prisma.$executeRaw`
     INSERT INTO story_search_index_versions (index_version, embedding_model, layout, recipe_version)
-    VALUES (${indexVersion}, 'text-embedding-3-small', 'split', 1), (${shadowVersion}, 'text-embedding-3-small', 'split', 1)
+    VALUES
+      (${contract.indexId}, ${contract.embeddingModel}, 'split', 1),
+      (${shadowVersion}, ${contract.embeddingModel}, 'split', 1)
     ON CONFLICT (index_version) DO NOTHING
   `;
 });
 
-afterEach(() => {
-  process.env = originalEnv;
-});
-
 afterAll(() => {
   embed.mockRestore();
-  rerank.mockRestore();
+  rewrite.mockRestore();
 });
 
-describe('POST /api/stories/search with a versioned index', () => {
+describe('POST /api/stories/search with an indexed catalog', () => {
   it('finds a term in an expansion during an embedding outage and returns only the story card', async () => {
     const topic = await seedTopic();
     const story = await seedStory(topic.id, { title: 'חבר טוב מאכיל את החבר', expansion: 'הדיון עוסק ביאוש שלא מדעת.' });
@@ -85,7 +77,7 @@ describe('POST /api/stories/search with a versioned index', () => {
     await seedStory(topic.id, { title: 'דוגמה נוספת' });
 
     const exact = await search({ q: 'כֵּיצַד שומרים על הפיקדון' });
-    const byTopic = await search({ q: 'סיפורים על הלכות פקדון' });
+    const byTopic = await search({ q: 'הלכות פקדון' });
 
     assertSuccess(exact);
     assertSuccess(byTopic);
@@ -115,24 +107,24 @@ describe('POST /api/stories/search with a versioned index', () => {
     expect(embed).not.toHaveBeenCalled();
   });
 
-  it('requires both parts of a source and topic query before applying the separate OR filters', async () => {
+  it('ranks combined source and text matches before source-only matches within the selected topic', async () => {
     const topic = await seedTopic();
     const filter = await seedTopic();
     const tractate = await seedMasechet({ name: 'בבא מציעא' });
     const page = await seedShasPage(tractate.id, 36, '');
-    const both = await seedStory(topic.id);
+    const both = await seedStory(filter.id);
     const byTopic = await seedStory(topic.id);
-    const bySource = await seedStory(topic.id);
-    const byFilter = await seedStory(filter.id);
+    const bySource = await seedStory(filter.id);
+    await seedStory(filter.id);
     await linkStoryToShas(both.id, page.id);
     await linkStoryToShas(bySource.id, page.id);
     await addDocument(both.id, 'principle', 'שומר שמסר לשומר');
     await addDocument(byTopic.id, 'principle', 'שומר שמסר לשומר');
 
-    const res = await search({ q: 'סיפור לכיתה על שומר שמסר לשומר מבבא מציעא ל״ו', topicIds: [filter.id] });
+    const res = await search({ q: 'שומר שמסר לשומר מבבא מציעא ל״ו', topicIds: [filter.id] });
 
     assertSuccess(res);
-    expect(res.body.data.stories.map(({ id }: { id: string }) => id)).toEqual([both.id, byFilter.id]);
+    expect(res.body.data.stories.map(({ id }: { id: string }) => id)).toEqual([both.id, bySource.id]);
   });
 
   it('reuses one query vector across case and principle while excluding other model spaces', async () => {
@@ -155,24 +147,30 @@ describe('POST /api/stories/search with a versioned index', () => {
     expect(embed).toHaveBeenCalledTimes(1);
   });
 
-  it('keeps the relevance order and OR facet results across pages when reranking times out', async () => {
-    process.env.SEARCH_RERANK_ENABLED = 'true';
-    rerank.mockRejectedValue(new Error('Provider unavailable'));
+  it('filters weak matches when the leading results share a phrase from the query', async () => {
     const topic = await seedTopic();
-    const facet = await seedTopic();
-    const match = await seedStory(topic.id);
-    const byFacet = await seedStory(facet.id);
-    await addDocument(match.id, 'principle', 'זכויות שוכר דירה');
-    const body = { q: 'זכויות שוכר', topicIds: [facet.id], limit: 1 };
+    const matches = [];
+    for (let i = 0; i < 9; i++) {
+      const story = await seedStory(topic.id);
+      matches.push(story.id);
+      await addDocument(story.id, 'principle', 'להדליק נרות שבת בבית.');
+    }
 
-    const first = await search(body);
-    const second = await search({ ...body, page: 2 });
+    const sharedWords = await seedStory(topic.id);
+    const incidentalPhrase = await seedStory(topic.id);
+    const vectorOnly = await seedStory(topic.id);
+    const vector = vectorAt(0);
+    await addDocument(sharedWords.id, 'principle', 'חייב לשלם על מלאכה שעשה בשבת. שבת.');
+    await addDocument(incidentalPhrase.id, 'expansion', 'ליד החלון עמדו נרות שבת.');
+    await addDocument(vectorOnly.id, 'scenario', 'דנו בפרטי העבודה.', { vector });
+    embed.mockResolvedValue({ vectors: [vector], inputTokens: 7 });
 
-    assertSuccess(first);
-    assertSuccess(second);
-    expect(first.body.data).toMatchObject({ total: 2, stories: [{ id: match.id }] });
-    expect(second.body.data).toMatchObject({ total: 2, stories: [{ id: byFacet.id }] });
-    expect(rerank).toHaveBeenCalledTimes(2);
+    const res = await search({ q: 'האם גבר חייב להדליק נרות שבת?' });
+
+    assertSuccess(res);
+    expect(res.body.data.total).toBe(9);
+    expect(res.body.data.nextCursor).toBeNull();
+    expect(res.body.data.stories.map(({ id }: { id: string }) => id).sort()).toEqual(matches.sort());
   });
 
   it('requires the API secret before querying the index', async () => {
@@ -182,6 +180,7 @@ describe('POST /api/stories/search with a versioned index', () => {
   });
 });
 
+/** מציג את גוף השגיאה אם חיפוש באינטגרציה נכשל לפני בדיקת התוצאות. */
 function assertSuccess(res: request.Response) {
   if (res.status !== 200) throw new Error(`Search returned ${res.status}: ${JSON.stringify(res.body)}`);
 }

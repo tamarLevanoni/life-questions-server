@@ -1,0 +1,5 @@
+{
+  "indexId": "story-search",
+  "embeddingModel": "text-embedding-3-small",
+  "embeddingDimensions": 1536
+}

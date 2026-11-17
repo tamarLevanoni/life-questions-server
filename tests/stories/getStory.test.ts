@@ -1,5 +1,5 @@
 import request from 'supertest';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'node:crypto';
 import { app } from '../../src/app';
 import { prisma } from '../../src/lib/prisma';
 import {
@@ -16,14 +16,16 @@ import {
 
 const SECRET = process.env.API_SECRET ?? 'test-secret';
 
+// שולח בקשה עם מפתח השרת. הרשאת הקורא נבדקת בנפרד באמצעות הכותרת x-story-reader-id.
 const authed = (url: string) =>
   request(app).get(url).set('x-api-secret', SECRET);
 
+/** יוצר קורא עם מזהה Google כדי לבדוק החזרת הרחבה לקורא מורשה. */
 async function createReader() {
   return prisma.user.create({
     data: {
-      googleId: `google-${uuidv4()}`,
-      email: `${uuidv4()}@test.com`,
+      googleId: `google-${randomUUID()}`,
+      email: `${randomUUID()}@test.com`,
       firstName: 'Test',
       lastName: 'Reader',
       phone: '0501234567',
@@ -105,7 +107,7 @@ describe('GET /api/stories/:id', () => {
       searchText: 'הרחבה זמינה',
       summaryAi: 'הרחבה זמינה',
     });
-    const res = await authed(`/api/stories/${story.id}`).set('x-story-reader-id', uuidv4());
+    const res = await authed(`/api/stories/${story.id}`).set('x-story-reader-id', randomUUID());
     expect(res.status).toBe(200);
     expect(res.body.data.hasExpansion).toBe(true);
     expect(res.body.data.expansion).toBeNull();
@@ -125,7 +127,7 @@ describe('GET /api/stories/:id', () => {
   });
 
   it('returns 404 when story does not exist', async () => {
-    const res = await authed(`/api/stories/${uuidv4()}`);
+    const res = await authed(`/api/stories/${randomUUID()}`);
 
     expect(res.status).toBe(404);
     expect(res.body.success).toBe(false);
@@ -142,7 +144,7 @@ describe('GET /api/stories/:id', () => {
     const topic = await seedTopic();
     const story = await seedStory(topic.id);
 
-    const res = await request(app).get(`/api/stories/${story.id}`).set('x-story-reader-id', uuidv4());
+    const res = await request(app).get(`/api/stories/${story.id}`).set('x-story-reader-id', randomUUID());
 
     expect(res.status).toBe(401);
     expect(res.body.success).toBe(false);

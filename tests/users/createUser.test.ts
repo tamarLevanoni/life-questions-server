@@ -1,5 +1,5 @@
 import request from 'supertest';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'node:crypto';
 import { app } from '../../src/app';
 import { prisma } from '../../src/lib/prisma';
 
@@ -9,8 +9,8 @@ const authed = (method: 'get' | 'post' | 'patch', url: string) =>
   request(app)[method](url).set('x-api-secret', SECRET);
 
 const makePayload = (overrides = {}) => ({
-  googleId: `google-${uuidv4()}`,
-  email: `user-${uuidv4()}@test.com`,
+  googleId: `google-${randomUUID()}`,
+  email: `user-${randomUUID()}@test.com`,
   firstName: 'Test',
   lastName: 'User',
   phone: '0501234567',

@@ -10,7 +10,9 @@ import {
 // Note: extendZodWithOpenApi(z) is called in users.validators.ts — importing it first ensures it runs before this module
 import { ContactSchema } from '../modules/contact/contact.validators';
 import {
-  SearchStoriesSchema,
+  CursorSearchSchema,
+  CursorStoriesPageSchema,
+  SearchAccountHeadersSchema,
   ShasRefFilterSchema,
   ShuRefFilterSchema,
   StoryIdParamSchema,
@@ -20,7 +22,8 @@ import {
   StoryCardSchema,
   StoryStubSchema,
   StoryNeighborsSchema,
-  StoriesCardListSchema,
+  SitemapPageSchema,
+  SitemapPageQuerySchema,
   BookSchema,
   MasechetSchema,
   MasechetWithPagesSchema,
@@ -195,8 +198,6 @@ registry.register('FullStory', FullStorySchema);
 registry.register('StoryCard', StoryCardSchema);
 registry.register('ShasRefFilter', ShasRefFilterSchema);
 registry.register('ShuRefFilter', ShuRefFilterSchema);
-registry.register('StoriesCardList', StoriesCardListSchema);
-registry.register('SearchStoriesBody', SearchStoriesSchema);
 
 // ── POST /api/stories/search ──────────────────────────────────────────────────
 
@@ -205,24 +206,51 @@ registry.registerPath({
   path: '/api/stories/search',
   tags: ['Stories'],
   summary: 'Search stories',
-  description: 'With a versioned search index active, matches story titles, topics, source references, expansion passages, and semantic representations of the scenario and principle. Lexical retrieval continues during embedding outages. Text matches are ranked before facet-only matches. A story can qualify through any active group: q, book+topic, shasRefs, shuRefs, or concepts. The response contains paginated story cards.',
+  description: 'Start a search with a query or at least one filter, or continue with only the cursor. Search combines filter groups with AND. It searches precise source references before expanding to nearby sources. Content search retains all exact catalog matches, including when a source is present. With a precise reference and topic, matches to both are followed by source-only and then content-only matches. A source named without a location boosts topic matches from that source. A source-only query lists stories linked to the source. Longer queries may omit weak matches when a shared phrase identifies the topic of the leading results. If embedding is unavailable, lexical and source searches can continue and the response is marked partial. The search saves ordered results for 30 minutes when further pages are available. The trusted BFF must include the account header.',
   security: [{ ApiSecretAuth: [] }],
   request: {
+    headers: SearchAccountHeadersSchema,
     body: {
-      content: { 'application/json': { schema: SearchStoriesSchema } },
+      content: { 'application/json': { schema: CursorSearchSchema } },
     },
   },
   responses: {
     200: {
-      description: 'Paginated list of stories matching filters',
-      content: { 'application/json': { schema: StandardSuccessSchema(StoriesCardListSchema) } },
+      description: 'Paginated list of stories matching filters. Each page contains up to ten cards.',
+      content: { 'application/json': { schema: StandardSuccessSchema(CursorStoriesPageSchema) } },
     },
     401: {
-      description: 'Missing or invalid x-api-secret header',
+      description: 'Missing or invalid API secret or search account header',
       content: { 'application/json': { schema: StandardErrorSchema } },
     },
     422: {
-      description: 'Invalid request body',
+      description: 'Invalid request body, including a search without a query or an active filter',
+      content: { 'application/json': { schema: StandardErrorSchema } },
+    },
+    404: { description: 'The cursor belongs to a different account', content: { 'application/json': { schema: StandardErrorSchema } } },
+    410: { description: 'Search results expired', content: { 'application/json': { schema: StandardErrorSchema } } },
+    503: { description: 'Search storage is unavailable', content: { 'application/json': { schema: StandardErrorSchema } } },
+  },
+});
+
+registry.registerPath({
+  method: 'get',
+  path: '/api/stories/sitemap',
+  tags: ['Stories'],
+  summary: 'List story IDs for the sitemap',
+  security: [{ ApiSecretAuth: [] }],
+  request: { query: SitemapPageQuerySchema },
+  responses: {
+    200: {
+      description: 'A page of story IDs in stable catalog order',
+      content: { 'application/json': { schema: StandardSuccessSchema(SitemapPageSchema) } },
+    },
+    401: {
+      description: 'Missing or invalid API secret',
+      content: { 'application/json': { schema: StandardErrorSchema } },
+    },
+    422: {
+      description: 'Invalid page or limit',
       content: { 'application/json': { schema: StandardErrorSchema } },
     },
   },

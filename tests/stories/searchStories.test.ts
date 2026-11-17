@@ -12,12 +12,20 @@ import {
   linkStoryToShu,
 } from '../helpers/seed';
 
+jest.mock('../../src/lib/search-ai', () => ({
+  ...jest.requireActual('../../src/lib/search-ai'),
+  embedSearchInputs: jest.fn().mockRejectedValue(new Error('Embedding provider disabled for integration tests')),
+  rewriteSearchQuery: jest.fn().mockResolvedValue(null),
+}));
+
 const SECRET = process.env.API_SECRET ?? 'test-secret';
 
+// שולח חיפוש פתיחה עם זהות חשבון קבועה לבדיקת החוזה.
 const search = (body: object = {}) =>
   request(app)
     .post('/api/stories/search')
     .set('x-api-secret', SECRET)
+    .set('x-search-account', 'a'.repeat(64))
     .send(body);
 
 beforeEach(async () => {
@@ -25,8 +33,8 @@ beforeEach(async () => {
 });
 
 describe('POST /api/stories/search', () => {
-  it('returns empty list when no stories exist', async () => {
-    const res = await search();
+  it('returns empty list for a valid search in an empty catalog', async () => {
+    const res = await search({ q: 'שאלה מעשית' });
 
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
@@ -34,17 +42,8 @@ describe('POST /api/stories/search', () => {
     expect(res.body.data.total).toBe(0);
   });
 
-  it('returns all stories without filters', async () => {
-    const topic = await seedTopic();
-    await seedStory(topic.id);
-    await seedStory(topic.id);
-    await seedStory(topic.id);
-
-    const res = await search();
-
-    expect(res.status).toBe(200);
-    expect(res.body.data.stories).toHaveLength(3);
-    expect(res.body.data.total).toBe(3);
+  it('rejects a search without a query or filters', async () => {
+    await search().expect(422);
   });
 
   it('filters by a single bookId', async () => {
@@ -263,7 +262,7 @@ describe('POST /api/stories/search', () => {
     expect(ids).toContain(storyGanav.id);
   });
 
-  it('searches by text using ILIKE fallback (no vector embedding in test env)', async () => {
+  it('finds a story by words from its title', async () => {
     const topic = await seedTopic();
     const story = await seedStory(topic.id, { title: 'מעשה בסוחר ירושלמי' });
     await seedStory(topic.id, { title: 'עניין אחר לגמרי' });
@@ -278,35 +277,33 @@ describe('POST /api/stories/search', () => {
   it('paginates results correctly', async () => {
     const topic = await seedTopic();
     for (let i = 0; i < 25; i++) {
-      await seedStory(topic.id);
+      await seedStory(topic.id, { storyOrder: i + 1 });
     }
 
-    const page1 = await search({ limit: 10, page: 1 });
-    expect(page1.status).toBe(200);
-    expect(page1.body.data.stories).toHaveLength(10);
-    expect(page1.body.data.total).toBe(25);
-    expect(page1.body.data.page).toBe(1);
-
-    const page2 = await search({ limit: 10, page: 2 });
-    expect(page2.body.data.stories).toHaveLength(10);
-
-    const page3 = await search({ limit: 10, page: 3 });
-    expect(page3.body.data.stories).toHaveLength(5);
+    const seen = new Set<string>();
+    let cursor;
+    for (const size of [10, 10, 5]) {
+      const page = await search(cursor ? { cursor } : { topicIds: [topic.id] });
+      expect(page.status).toBe(200);
+      expect(page.body.data.total).toBe(25);
+      expect(page.body.data.stories).toHaveLength(size);
+      for (const { id } of page.body.data.stories) seen.add(id);
+      cursor = page.body.data.nextCursor;
+    }
+    expect(seen.size).toBe(25);
+    expect(cursor).toBeNull();
   });
 
-  it('combines filter groups with OR — a story matching any one group is returned', async () => {
+  it('requires stories to match every active filter group', async () => {
     const topic = await seedTopic();
     const otherTopic = await seedTopic();
     const masechet = await seedMasechet();
     const page = await seedShasPage(masechet.id, 7, 'a');
-
-    // Matches only the book+topic group
-    const storyByTopic = await seedStory(topic.id);
-    // Matches only the shas group (different topic, no book/topic overlap)
-    const storyByShas = await seedStory(otherTopic.id);
-    await linkStoryToShas(storyByShas.id, page.id);
-    // Matches neither group
-    await seedStory(otherTopic.id);
+    const matchingStory = await seedStory(topic.id);
+    await linkStoryToShas(matchingStory.id, page.id);
+    await seedStory(topic.id);
+    const storyByReference = await seedStory(otherTopic.id);
+    await linkStoryToShas(storyByReference.id, page.id);
 
     const res = await search({
       topicIds: [topic.id],
@@ -314,53 +311,20 @@ describe('POST /api/stories/search', () => {
     });
 
     expect(res.status).toBe(200);
-    const ids = res.body.data.stories.map((s: { id: string }) => s.id);
-    expect(ids).toContain(storyByTopic.id);
-    expect(ids).toContain(storyByShas.id);
-    expect(res.body.data.stories).toHaveLength(2);
+    expect(res.body.data.stories.map(({ id }: { id: string }) => id)).toEqual([matchingStory.id]);
   });
 
-  it('combines the text query with structural filters via OR', async () => {
+  it('applies structural filters before matching the search text', async () => {
     const topic = await seedTopic();
     const otherTopic = await seedTopic();
+    const matchingStory = await seedStory(topic.id, { title: 'מציאה' });
+    await seedStory(otherTopic.id, { title: 'מציאה' });
+    await seedStory(topic.id, { title: 'סיפור אחר' });
 
-    // Matches only the text query
-    const storyByText = await seedStory(topic.id, { title: 'מציאה', storyBody: 'מעשה מיוחד בשוק' });
-    // Matches only the topic filter
-    const storyByTopic = await seedStory(otherTopic.id, { title: 'לא קשור', storyBody: 'עניין אחר' });
-    // Matches neither
-    await seedStory(otherTopic.id, { title: 'ללא קשר', storyBody: 'סתם עוד דבר' });
-
-    const res = await search({ q: 'מציאה', topicIds: [otherTopic.id] });
+    const res = await search({ q: 'מציאה', topicIds: [topic.id] });
 
     expect(res.status).toBe(200);
-    const ids = res.body.data.stories.map((s: { id: string }) => s.id);
-    expect(ids).toContain(storyByText.id);
-    expect(ids).toContain(storyByTopic.id);
-  });
-
-  it('ranks stories matching more filter groups ahead of stories matching fewer', async () => {
-    const topic = await seedTopic();
-    const otherTopic = await seedTopic();
-    const masechet = await seedMasechet();
-    const page = await seedShasPage(masechet.id, 7, 'a');
-
-    // Matches both the topic group and the shas group
-    const storyBoth = await seedStory(topic.id);
-    await linkStoryToShas(storyBoth.id, page.id);
-    // Matches only the topic group
-    const storyTopicOnly = await seedStory(topic.id);
-    // Matches neither
-    await seedStory(otherTopic.id);
-
-    const res = await search({
-      topicIds: [topic.id],
-      shasRefs: [{ masechetId: masechet.id }],
-    });
-
-    expect(res.status).toBe(200);
-    const ids = res.body.data.stories.map((s: { id: string }) => s.id);
-    expect(ids).toEqual([storyBoth.id, storyTopicOnly.id]);
+    expect(res.body.data.stories.map(({ id }: { id: string }) => id)).toEqual([matchingStory.id]);
   });
 
   it('returns 422 when body contains invalid UUIDs', async () => {

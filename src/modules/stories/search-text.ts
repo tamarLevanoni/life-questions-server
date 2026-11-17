@@ -1,3 +1,4 @@
+/** מאחד כתיב לצורך השוואת טקסט חופשי ומסיר סימנים שאינם נחוצים לחיפוש מילולי. */
 export function normalizeSearchText(text: string): string {
   return text
     .normalize('NFKC')

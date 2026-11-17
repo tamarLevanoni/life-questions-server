@@ -102,6 +102,7 @@ model ShasPage {
   @@map("shas_pages")
 }
 
+// שומר את התוכן המקורי, סדר הסיפור בספר והקשרים לנושא ולמקורות.
 model Story {
   id                  String   @id @default(uuid())
   bookId              String
@@ -146,6 +147,7 @@ model Story {
   @@map("stories")
 }
 
+// שומר את מאפייני אינדקס החיפוש לשימוש כלי האינדוקס.
 model StorySearchIndexVersion {
   indexVersion   String @id @map("index_version")
   embeddingModel String @map("embedding_model")
@@ -157,6 +159,7 @@ model StorySearchIndexVersion {
   @@map("story_search_index_versions")
 }
 
+// מייצג חלק של סיפור בגרסת אינדקס אחת. הטקסט משמש לחיפוש מילולי, והווקטור כשקיים מאפשר גם חיפוש סמנטי.
 model StorySearchDocument {
   storyId        String                       @map("story_id")
   indexVersion   String                       @map("index_version")
@@ -176,6 +179,7 @@ model StorySearchDocument {
   @@map("story_search_documents")
 }
 
+// מקשר סיפור לסימן ולסעיף שמופיעים כמקור שלו.
 model StoryToShu {
   storyId    String
   shuSimanId String
@@ -188,6 +192,7 @@ model StoryToShu {
   @@map("story_to_shu")
 }
 
+// מקשר סיפור לדף ויכול לשמור גם את נוסח ההפניה.
 model StoryToShas {
   storyId    String
   shasPageId String

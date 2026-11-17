@@ -1,5 +1,5 @@
 import request from 'supertest';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'node:crypto';
 import { app } from '../../src/app';
 import { prisma } from '../../src/lib/prisma';
 
@@ -14,12 +14,12 @@ beforeEach(async () => {
 
 describe('GET /api/users/google/:googleId', () => {
   it('returns the user for an existing googleId', async () => {
-    const googleId = `google-${uuidv4()}`;
+    const googleId = `google-${randomUUID()}`;
     const user = await prisma.user.create({
       data: {
-        id: uuidv4(),
+        id: randomUUID(),
         googleId,
-        email: `user-${uuidv4()}@test.com`,
+        email: `user-${randomUUID()}@test.com`,
         firstName: 'Test',
         lastName: 'User',
         phone: '0501234567',

@@ -1,5 +1,5 @@
 import request from 'supertest';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'node:crypto';
 import { app } from '../../src/app';
 import { prisma } from '../../src/lib/prisma';
 
@@ -11,8 +11,8 @@ const authed = (method: 'get' | 'post' | 'put' | 'patch' | 'delete', url: string
 const createUser = (overrides = {}) =>
   prisma.user.create({
     data: {
-      id: uuidv4(),
-      email: `update-${uuidv4()}@test.com`,
+      id: randomUUID(),
+      email: `update-${randomUUID()}@test.com`,
       firstName: 'Original',
       lastName: 'User',
       phone: '0501234567',
@@ -66,7 +66,7 @@ describe('PATCH /api/users/profile/:id', () => {
   });
 
   it('returns 404 for a non-existent user', async () => {
-    const res = await authed('patch', `/api/users/profile/${uuidv4()}`)
+    const res = await authed('patch', `/api/users/profile/${randomUUID()}`)
       .send({ firstName: 'Ghost' });
 
     expect(res.status).toBe(404);

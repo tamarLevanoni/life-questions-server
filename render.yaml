@@ -20,3 +20,7 @@ services:
         sync: false
       - key: SENTRY_DSN
         sync: false
+      - key: SEARCH_REDIS_URL
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false

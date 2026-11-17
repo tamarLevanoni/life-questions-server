@@ -4,6 +4,7 @@ import { cleanDb, seedTopic, seedStory } from '../helpers/seed';
 
 const SECRET = process.env.API_SECRET ?? 'test-secret';
 
+// שולח בקשת בדיקה עם מפתח השרת כדי לבדוק את בחירת הדוגמאות.
 const authed = (url: string) => request(app).get(url).set('x-api-secret', SECRET);
 
 beforeEach(async () => {

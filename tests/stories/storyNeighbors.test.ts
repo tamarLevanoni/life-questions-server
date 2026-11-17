@@ -1,10 +1,11 @@
 import request from 'supertest';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'node:crypto';
 import { app } from '../../src/app';
 import { cleanDb, seedBook, seedTopic, seedStory } from '../helpers/seed';
 
 const SECRET = process.env.API_SECRET ?? 'test-secret';
 
+// שולח בקשת פרטי סיפור עם מפתח השרת כדי לבדוק את השכנים שהשרת מחזיר.
 const authed = (url: string) =>
   request(app).get(url).set('x-api-secret', SECRET);
 
@@ -79,7 +80,7 @@ describe('GET /api/stories/:id neighbors field', () => {
   });
 
   it('returns 404 for a non-existent story', async () => {
-    const res = await authed(`/api/stories/${uuidv4()}`);
+    const res = await authed(`/api/stories/${randomUUID()}`);
 
     expect(res.status).toBe(404);
     expect(res.body.success).toBe(false);

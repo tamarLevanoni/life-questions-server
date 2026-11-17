@@ -15,7 +15,7 @@ export const CreateUserSchema = z
     institutionName: z.string().optional().openapi({ example: 'Yeshivat Har Etzion' }),
     phone: z.string().min(1, { message: 'phone is required' }).openapi({ example: '+972501234567' }),
     occupations: z.array(OccupationEnum).optional().default([]),
-    marketingConsent: z.boolean().optional().default(true).openapi({ example: true }),
+    marketingConsent: z.literal(true).openapi({ example: true, description: 'Explicit marketing consent is required' }),
   })
   .openapi('CreateUserRequest');
 
@@ -26,6 +26,7 @@ export const UpdateProfileSchema = z
     institutionName: z.string().nullable().optional().openapi({ example: 'Machon Meir' }),
     phone: z.string().min(1, { message: 'phone cannot be empty' }).optional().openapi({ example: '+972509876543' }),
     occupations: z.array(OccupationEnum).optional(),
+    marketingConsent: z.literal(true).openapi({ example: true, description: 'Explicit marketing consent is required for every profile update' }),
   })
   .refine((data) => Object.keys(data).length > 0, {
     message: 'At least one field must be provided for update',

@@ -29,7 +29,7 @@ describe('PATCH /api/users/profile/:id', () => {
     const user = await createUser();
 
     const res = await authed('patch', `/api/users/profile/${user.id}`)
-      .send({ institutionName: 'New University', occupations: ['teacher'] });
+      .send({ marketingConsent: true, institutionName: 'New University', occupations: ['teacher'] });
 
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
@@ -44,7 +44,7 @@ describe('PATCH /api/users/profile/:id', () => {
     const user = await createUser({ institutionName: 'Keep This', lastName: 'KeepLast' });
 
     const res = await authed('patch', `/api/users/profile/${user.id}`)
-      .send({ firstName: 'NewFirst' });
+      .send({ marketingConsent: true, firstName: 'NewFirst' });
 
     expect(res.status).toBe(200);
     expect(res.body.data.firstName).toBe('NewFirst');
@@ -56,7 +56,7 @@ describe('PATCH /api/users/profile/:id', () => {
     const user = await createUser({ institutionName: 'To Be Cleared' });
 
     const res = await authed('patch', `/api/users/profile/${user.id}`)
-      .send({ institutionName: null });
+      .send({ marketingConsent: true, institutionName: null });
 
     expect(res.status).toBe(200);
     expect(res.body.data.institutionName).toBeNull();
@@ -67,7 +67,7 @@ describe('PATCH /api/users/profile/:id', () => {
 
   it('returns 404 for a non-existent user', async () => {
     const res = await authed('patch', `/api/users/profile/${randomUUID()}`)
-      .send({ firstName: 'Ghost' });
+      .send({ marketingConsent: true, firstName: 'Ghost' });
 
     expect(res.status).toBe(404);
     expect(res.body.success).toBe(false);
@@ -75,7 +75,7 @@ describe('PATCH /api/users/profile/:id', () => {
 
   it('returns 400 for a malformed (non-UUID) id', async () => {
     const res = await authed('patch', '/api/users/profile/not-a-uuid')
-      .send({ firstName: 'Test' });
+      .send({ marketingConsent: true, firstName: 'Test' });
 
     expect(res.status).toBe(400);
     expect(res.body.success).toBe(false);
@@ -85,7 +85,7 @@ describe('PATCH /api/users/profile/:id', () => {
     const user = await createUser();
 
     const res = await authed('patch', `/api/users/profile/${user.id}`)
-      .send({ occupations: ['invalid-role'] });
+      .send({ marketingConsent: true, occupations: ['invalid-role'] });
 
     expect(res.status).toBe(422);
     expect(res.body.success).toBe(false);
@@ -96,7 +96,7 @@ describe('PATCH /api/users/profile/:id', () => {
 
     const res = await request(app)
       .patch(`/api/users/profile/${user.id}`)
-      .send({ firstName: 'Hacker' });
+      .send({ marketingConsent: true, firstName: 'Hacker' });
 
     expect(res.status).toBe(401);
     expect(res.body.success).toBe(false);
@@ -108,7 +108,7 @@ describe('PATCH /api/users/profile/:id', () => {
     const res = await request(app)
       .patch(`/api/users/profile/${user.id}`)
       .set('x-api-secret', 'wrong')
-      .send({ firstName: 'Hacker' });
+      .send({ marketingConsent: true, firstName: 'Hacker' });
 
     expect(res.status).toBe(401);
     expect(res.body.success).toBe(false);

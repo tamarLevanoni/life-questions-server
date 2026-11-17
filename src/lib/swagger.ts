@@ -87,7 +87,7 @@ registry.registerPath({
   path: '/api/users',
   tags: ['Users'],
   summary: 'Create a new user',
-  description: 'Creates a user record after Google OAuth sign-up. Fails if the email already exists.',
+  description: 'Creates a user record after Google OAuth sign-up. Explicit marketingConsent: true is required; missing or false consent returns 422. Fails if the email already exists.',
   security: [{ ApiSecretAuth: [] }],
   request: {
     body: {
@@ -156,7 +156,7 @@ registry.registerPath({
   path: '/api/users/profile/{id}',
   tags: ['Users'],
   summary: 'Update user profile',
-  description: 'Partially updates mutable profile fields. At least one field must be provided.',
+  description: 'Partially updates mutable profile fields. Every request must explicitly include marketingConsent: true; missing or false consent returns 422.',
   security: [{ ApiSecretAuth: [] }],
   request: {
     params: z.object({ id: UuidParamSchema }),

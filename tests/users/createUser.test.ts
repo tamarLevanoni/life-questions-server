@@ -14,6 +14,7 @@ const makePayload = (overrides = {}) => ({
   firstName: 'Test',
   lastName: 'User',
   phone: '0501234567',
+  marketingConsent: true,
   ...overrides,
 });
 
